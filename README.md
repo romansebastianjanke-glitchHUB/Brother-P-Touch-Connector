@@ -3,7 +3,22 @@
 Etiketten auf einem **Brother PT-P710BT** per **Bluetooth** drucken – vom Mac aus,
 ohne Brother-Software. Spricht direkt das Raster-Protokoll des Druckers.
 
-## Einrichtung (macOS)
+## Am einfachsten: per Doppelklick (ohne Terminal-Kenntnisse)
+
+1. Auf der GitHub-Seite grüner Button **„Code“ → „Download ZIP“**, ZIP im Finder doppelklicken.
+2. Drucker einschalten, Bluetooth-Taste drücken, dann *Systemeinstellungen → Bluetooth* →
+   „PT-P710BT…“ **verbinden**.
+3. Im entpackten Ordner **`Etikett drucken.command`** doppelklicken.
+   - Meldet macOS *„kann nicht geöffnet werden, da sie von einem nicht verifizierten Entwickler stammt“*:
+     Rechtsklick auf die Datei → **Öffnen** → **Öffnen**. Ab macOS 15 stattdessen:
+     *Systemeinstellungen → Datenschutz & Sicherheit* → ganz unten **„Trotzdem öffnen“**.
+   - Fragt macOS nach den **„Befehlszeilentools“**: installieren, danach erneut doppelklicken.
+4. Beim ersten Start wird ca. 1 Minute eingerichtet, danach Text eingeben und Enter drücken.
+
+Alles bleibt in diesem einen Ordner. **Rückgängig machen = Ordner löschen.**
+Die Ausgabe jedes Laufs steht in `letzter-lauf.txt` – die kannst du bei Problemen weitergeben.
+
+## Einrichtung über das Terminal (macOS)
 
 1. **Drucker koppeln:** PT-P710BT einschalten, Bluetooth-Taste drücken (blaue LED),
    dann *Systemeinstellungen → Bluetooth* → „PT-P710BT…“ verbinden.

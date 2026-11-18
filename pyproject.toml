@@ -7,7 +7,7 @@ name = "ptouch-connector"
 version = "0.1.0"
 description = "Etiketten auf einem Brother PT-P710BT über Bluetooth drucken (macOS)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = ["pillow>=10.1", "pyserial>=3.5"]
 
 [project.optional-dependencies]
