@@ -10,8 +10,8 @@ ohne Brother-Software. Spricht direkt das Raster-Protokoll des Druckers.
 2. **Installieren:**
 
    ```bash
-   git clone https://github.com/romansebastianjanke-glitchHUB/brother-p-touch-connector.git
-   cd brother-p-touch-connector
+   git clone https://github.com/romansebastianjanke-glitchHUB/Brother-P-Touch-Connector.git
+   cd Brother-P-Touch-Connector
    python3 -m venv .venv && source .venv/bin/activate
    pip install -e ".[dev]"
    ```
