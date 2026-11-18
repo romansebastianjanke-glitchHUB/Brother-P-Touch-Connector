@@ -72,13 +72,16 @@ fi
 
 ptouch() { PYTHONUNBUFFERED=1 PYTHONPATH="$PWD/src" .venv/bin/python -m ptouch_connector.cli "$@"; }
 
-# 3) Verbindung testen (beide Wege)
-echo "Teste die Verbindung zum Drucker (dauert bis zu 1 Minute) …"
+# 3) Verbindung testen
+echo "Verbinde mit dem Drucker …"
 echo "Falls macOS fragt, ob Terminal Bluetooth verwenden darf: bitte 'Erlauben'."
 echo
 EXTRA=()
-rm -f .transport
-if ptouch diagnose --save .transport --verbose; then
+TRANSPORT=""
+[ -f .transport ] && TRANSPORT="$(cat .transport)"
+if [ -n "$TRANSPORT" ] && ptouch status --transport "$TRANSPORT"; then
+    :
+elif echo "Teste alle Verbindungswege (dauert bis zu 1 Minute) …" && ptouch diagnose --save .transport --verbose; then
     TRANSPORT="$(cat .transport)"
 else
     TRANSPORT="bt"

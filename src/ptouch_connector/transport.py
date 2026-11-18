@@ -211,18 +211,24 @@ class RfcommPrinter(Printer):
             ret = self.dev.openConnection()
             log(f"  Basisverbindung: {'ok' if _ok(ret) else f'Fehler {int(ret)}'}")
 
-        if channel_id is None:
-            channel_id = self._sdp_channel(IOBluetooth)
-        log(f"  RFCOMM-Kanal: {channel_id}")
-
         self.inbox = bytearray()
         self.delegate = _make_delegate(self.inbox, log)
-        result = self.dev.openRFCOMMChannelSync_withChannelID_delegate_(None, channel_id, self.delegate)
-        ret, self.channel = result if isinstance(result, tuple) else (result, None)
+        # Der PT-P710BT nutzt Kanal 1; die Dienstabfrage nur als Rückfall
+        ret = self._open_channel(channel_id or 1)
+        if not _ok(ret) and channel_id is None:
+            sdp = self._sdp_channel(IOBluetooth)
+            if sdp != 1:
+                ret = self._open_channel(sdp)
         if not _ok(ret) or self.channel is None:
-            raise OSError(f"RFCOMM-Kanal {channel_id} ließ sich nicht öffnen (Fehler {int(ret)})")
+            raise OSError(f"RFCOMM-Kanal ließ sich nicht öffnen (Fehler {int(ret)})")
         self.mtu = max(1, min(int(self.channel.getMTU() or 127), 1000))
         _run_loop(settle)
+
+    def _open_channel(self, channel_id: int):
+        self.log(f"  RFCOMM-Kanal: {channel_id}")
+        result = self.dev.openRFCOMMChannelSync_withChannelID_delegate_(None, channel_id, self.delegate)
+        ret, self.channel = result if isinstance(result, tuple) else (result, None)
+        return ret
 
     def _sdp_channel(self, IOBluetooth) -> int:
         uuid = IOBluetooth.IOBluetoothSDPUUID.uuid16_(SERIAL_PORT_UUID16)

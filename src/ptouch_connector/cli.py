@@ -8,6 +8,9 @@ import sys
 from . import protocol, render
 from .transport import find_ports, open_printer
 
+# Auf macOS funktioniert nur der direkte Bluetooth-Weg zuverlässig
+DEFAULT_TRANSPORT = "bt" if sys.platform == "darwin" else "serial"
+
 
 def _open(args):
     print(f"Verbinde ({args.transport}) …", flush=True)
@@ -42,13 +45,12 @@ def cmd_diagnose(args) -> None:
         from .transport import paired_devices
 
         devs = paired_devices()
-        print("Gekoppelte Bluetooth-Geräte:")
-        for name, addr in devs:
-            print(f"  - {name} ({addr})")
+        hits = [f"{n} ({a})" for n, a in devs if "PT-" in n or "P710" in n]
+        print(f"Gekoppelte Bluetooth-Geräte: {len(devs)}, davon P-Touch: {', '.join(hits) or 'keiner'}")
     except Exception as e:
         print(f"Bluetooth-Geräteliste nicht verfügbar: {type(e).__name__}: {e}")
 
-    for transport in ("serial", "bt"):
+    for transport in ("bt", "serial"):
         print(f"\n--- Versuch über '{transport}' ---", flush=True)
         try:
             with open_printer(transport) as p:
@@ -129,7 +131,7 @@ def main(argv: list[str] | None = None) -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def add_port(p):
-        p.add_argument("--transport", choices=["serial", "bt"], default="serial",
+        p.add_argument("--transport", choices=["serial", "bt"], default=DEFAULT_TRANSPORT,
                        help="serial = /dev/cu.PT-…, bt = direkter Bluetooth-Kanal (macOS)")
         p.add_argument("--port", help="z. B. /dev/cu.PT-P710BT1234 (nur serial)")
 
