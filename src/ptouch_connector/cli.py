@@ -1,4 +1,4 @@
-"""Kommandozeile: `ptouch ports | status | preview | print`."""
+"""Kommandozeile: `ptouch ports | diagnose | status | preview | print`."""
 
 from __future__ import annotations
 
@@ -6,21 +6,12 @@ import argparse
 import sys
 
 from . import protocol, render
-from .transport import Printer, find_ports
+from .transport import find_ports, open_printer
 
 
-def _port(args) -> str:
-    if args.port:
-        return args.port
-    ports = find_ports()
-    if not ports:
-        sys.exit(
-            "Kein Drucker-Port gefunden. PT-P710BT einschalten, in den macOS-Bluetooth-"
-            "Einstellungen koppeln und mit `ptouch ports` prüfen – oder --port angeben."
-        )
-    if len(ports) > 1:
-        print(f"Mehrere Ports gefunden, nehme {ports[0]}: {', '.join(ports)}", file=sys.stderr)
-    return ports[0]
+def _open(args):
+    print(f"Verbinde ({args.transport}) …", flush=True)
+    return open_printer(args.transport, port=getattr(args, "port", None))
 
 
 def _image(args, tape: float):
@@ -36,10 +27,43 @@ def cmd_ports(args) -> None:
 
 
 def cmd_status(args) -> None:
-    port = _port(args)
-    print(f"Verbinde mit {port} …")
-    with Printer(port) as p:
+    with _open(args) as p:
         print(p.status().describe())
+
+
+def cmd_diagnose(args) -> None:
+    """Beide Verbindungswege ausprobieren; den funktionierenden in --save schreiben."""
+    import platform
+    import traceback
+
+    print(f"System: macOS {platform.mac_ver()[0] or '?'} / Python {platform.python_version()}")
+    print(f"Serielle Schnittstellen: {', '.join(find_ports()) or 'keine'}")
+    try:
+        from .transport import paired_devices
+
+        devs = paired_devices()
+        print("Gekoppelte Bluetooth-Geräte:")
+        for name, addr in devs:
+            print(f"  - {name} ({addr})")
+    except Exception as e:
+        print(f"Bluetooth-Geräteliste nicht verfügbar: {type(e).__name__}: {e}")
+
+    for transport in ("serial", "bt"):
+        print(f"\n--- Versuch über '{transport}' ---", flush=True)
+        try:
+            with open_printer(transport) as p:
+                st = p.status()
+            print(st.describe())
+            print(f"\nERFOLG über '{transport}'.")
+            if args.save:
+                with open(args.save, "w") as f:
+                    f.write(transport)
+            return
+        except Exception as e:
+            print(f"Fehlgeschlagen: {type(e).__name__}: {e}")
+            if args.verbose:
+                traceback.print_exc(file=sys.stdout)
+    sys.exit("\nKein Verbindungsweg hat funktioniert.")
 
 
 def cmd_preview(args) -> None:
@@ -50,12 +74,11 @@ def cmd_preview(args) -> None:
 
 
 def cmd_print(args) -> None:
-    port = None if args.dry_run else _port(args)
     tape = args.tape
     media_type = 0x01
     printer = None
-    if port:
-        printer = Printer(port)
+    if not args.dry_run:
+        printer = _open(args)
         if args.no_status:
             st = None
             print("Drucke ohne Statusabfrage …")
@@ -106,7 +129,9 @@ def main(argv: list[str] | None = None) -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def add_port(p):
-        p.add_argument("--port", help="z. B. /dev/cu.PT-P710BT1234 (Standard: automatisch)")
+        p.add_argument("--transport", choices=["serial", "bt"], default="serial",
+                       help="serial = /dev/cu.PT-…, bt = direkter Bluetooth-Kanal (macOS)")
+        p.add_argument("--port", help="z. B. /dev/cu.PT-P710BT1234 (nur serial)")
 
     def add_content(p):
         g = p.add_mutually_exclusive_group(required=True)
@@ -118,6 +143,11 @@ def main(argv: list[str] | None = None) -> None:
 
     p = sub.add_parser("ports", help="Bluetooth-Ports auflisten")
     p.set_defaults(func=cmd_ports)
+
+    p = sub.add_parser("diagnose", help="Verbindungswege testen")
+    p.add_argument("--save", help="funktionierenden Weg in diese Datei schreiben")
+    p.add_argument("--verbose", action="store_true")
+    p.set_defaults(func=cmd_diagnose)
 
     p = sub.add_parser("status", help="Druckerstatus abfragen")
     add_port(p)

@@ -62,38 +62,37 @@ if ! .venv/bin/python -c "import PIL, serial" >/dev/null 2>&1; then
     echo
 fi
 
-ptouch() { PYTHONPATH="$PWD/src" .venv/bin/python -m ptouch_connector.cli "$@"; }
-
-# 3) Drucker suchen
-echo "Suche Drucker …"
-PORTS=$(ptouch ports)
-echo "$PORTS"
-if ! echo "$PORTS" | grep -q "^/dev/"; then
+# 2b) Bluetooth-Baustein für den direkten Weg (einmalig, ca. 20 MB)
+if ! .venv/bin/python -c "import IOBluetooth" >/dev/null 2>&1; then
+    echo "Installiere Bluetooth-Baustein (einmalig) …"
+    .venv/bin/python -m pip install --quiet --only-binary :all: "pyobjc-framework-IOBluetooth>=10,<12" \
+        || echo "Hinweis: Bluetooth-Baustein konnte nicht installiert werden."
     echo
-    echo "Kein Drucker gefunden. Bitte prüfen:"
-    echo "  1. Drucker eingeschaltet?"
-    echo "  2. Systemeinstellungen → Bluetooth: ist 'PT-P710BT…' dort eingetragen?"
-    echo "     Falls nicht: Bluetooth-Taste am Drucker drücken und dort 'Verbinden' klicken."
-    echo
-    echo "Vorhandene Schnittstellen (für die Fehlersuche):"
-    ls /dev/cu.* 2>/dev/null
-    pause 1
 fi
 
-# 4) Status
-EXTRA=()
+ptouch() { PYTHONUNBUFFERED=1 PYTHONPATH="$PWD/src" .venv/bin/python -m ptouch_connector.cli "$@"; }
+
+# 3) Verbindung testen (beide Wege)
+echo "Teste die Verbindung zum Drucker (dauert bis zu 1 Minute) …"
+echo "Falls macOS fragt, ob Terminal Bluetooth verwenden darf: bitte 'Erlauben'."
 echo
-echo "Frage Druckerstatus ab (dauert ein paar Sekunden) …"
-if ! ptouch status; then
+EXTRA=()
+rm -f .transport
+if ptouch diagnose --save .transport --verbose; then
+    TRANSPORT="$(cat .transport)"
+else
+    TRANSPORT="bt"
     echo
-    echo "Der Drucker antwortet nicht auf die Statusabfrage."
-    echo "Tipp: Ist der Drucker gerade mit einem Handy (Brother-App) verbunden? Dann dort trennen."
+    echo "Der Drucker antwortet auf keinem Weg."
+    echo "Bitte prüfen: Drucker an? Handy-App (Brother) getrennt?"
     echo
-    echo "Wir können trotzdem einen Testdruck versuchen – dann sehen wir, ob die Daten ankommen."
+    echo "Wir können trotzdem einen Testdruck über den direkten Bluetooth-Weg versuchen."
     read -r -p "Welche Bandbreite ist eingelegt? (z. B. 12 – leer lassen = abbrechen): " TAPE
+    echo "(Bandbreite: $TAPE)"
     [ -z "$TAPE" ] && pause 1
     EXTRA=(--no-status --tape "$TAPE")
 fi
+EXTRA+=(--transport "$TRANSPORT")
 
 # 5) Drucken
 FLIP=()

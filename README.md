@@ -61,6 +61,16 @@ Wichtige Optionen für `print`:
 | `--flip` | Ausdruck um 180° drehen, falls er verkehrt herum kommt |
 | `--dry-run` | Druckauftrag nur als Datei schreiben |
 
+## Verbindungswege
+
+- `--transport serial` (Standard): über `/dev/cu.PT-P710BT…`.
+- `--transport bt`: direkter Bluetooth-Kanal über das macOS-Framework IOBluetooth
+  (`pip install "pyobjc-framework-IOBluetooth>=10,<12"`). Nötig, wenn über die serielle
+  Schnittstelle keine Daten ankommen.
+
+`ptouch diagnose` probiert beide Wege und zeigt, welcher funktioniert.
+Die Doppelklick-Datei macht das automatisch.
+
 ## Unterstützte Bänder
 
 TZe 3,5 / 6 / 9 / 12 / 18 / 24 mm (180 dpi, 128-Pin-Druckkopf).
