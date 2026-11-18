@@ -20,11 +20,15 @@ def find_ports() -> list[str]:
 
 
 class Printer:
-    def __init__(self, port: str, timeout: float = 10.0):
+    def __init__(self, port: str, timeout: float = 10.0, settle: float = 2.0):
         import serial  # erst hier, damit Tests ohne pyserial-Gerät laufen
 
         self.port = port
         self.ser = serial.Serial(port, baudrate=115200, timeout=timeout, write_timeout=timeout)
+        # Unter macOS wird die Bluetooth-Verbindung erst beim Öffnen aufgebaut.
+        # Was in dieser Zeit gesendet wird, kann verloren gehen.
+        time.sleep(settle)
+        self.last_raw = b""
 
     def close(self) -> None:
         self.ser.close()
@@ -41,34 +45,63 @@ class Printer:
             self.ser.write(data[i : i + chunk])
             self.ser.flush()
 
-    def read_status(self, timeout: float | None = None) -> Status | None:
+    def _find_status(self, buf: bytearray) -> Status | None:
+        """Gültige 32-Byte-Statusmeldung im Puffer suchen und daraus entfernen."""
+        while True:
+            i = buf.find(b"\x80\x20")
+            if i < 0 or len(buf) - i < 32:
+                if i > 0:
+                    del buf[:i]
+                return None
+            try:
+                st = parse_status(bytes(buf[i : i + 32]))
+            except ValueError:
+                del buf[: i + 1]
+                continue
+            del buf[: i + 32]
+            return st
+
+    def _read_until_status(self, buf: bytearray, timeout: float) -> Status | None:
+        deadline = time.monotonic() + timeout
         old = self.ser.timeout
-        if timeout is not None:
-            self.ser.timeout = timeout
+        self.ser.timeout = 0.5
         try:
-            data = self.ser.read(32)
+            while True:
+                st = self._find_status(buf)
+                if st is not None:
+                    return st
+                if time.monotonic() >= deadline:
+                    return None
+                buf += self.ser.read(64)
         finally:
             self.ser.timeout = old
-        return parse_status(data) if len(data) == 32 else None
 
-    def status(self) -> Status:
+    def status(self, attempts: int = 3, timeout: float = 5.0) -> Status:
         self.ser.reset_input_buffer()
-        self.write(INVALIDATE + INITIALIZE + STATUS_REQUEST)
-        st = self.read_status()
-        if st is None:
-            raise TimeoutError("Keine Statusantwort vom Drucker (eingeschaltet und verbunden?)")
-        return st
+        buf = bytearray()
+        received = 0
+        for _ in range(attempts):
+            self.write(INVALIDATE + INITIALIZE + STATUS_REQUEST)
+            before = len(buf)
+            st = self._read_until_status(buf, timeout)
+            if st is not None:
+                return st
+            received += len(buf) - before
+        self.last_raw = bytes(buf)
+        detail = f"{received} Bytes empfangen" + (f": {bytes(buf[:64]).hex()}" if buf else "")
+        raise TimeoutError(f"Keine gültige Statusantwort nach {attempts} Versuchen ({detail})")
 
     def print_job(self, job: bytes, wait: float = 30.0) -> Status | None:
         """Auftrag senden und auf 'Druck abgeschlossen' bzw. Fehler warten."""
         self.ser.reset_input_buffer()
         self.write(job)
+        buf = bytearray()
         deadline = time.monotonic() + wait
         last = None
         while time.monotonic() < deadline:
-            st = self.read_status(timeout=max(0.5, deadline - time.monotonic()))
+            st = self._read_until_status(buf, deadline - time.monotonic())
             if st is None:
-                continue
+                break
             last = st
             if st.status_type_code in (0x01, 0x02):  # fertig oder Fehler
                 return st

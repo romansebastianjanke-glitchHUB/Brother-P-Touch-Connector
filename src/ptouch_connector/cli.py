@@ -36,7 +36,9 @@ def cmd_ports(args) -> None:
 
 
 def cmd_status(args) -> None:
-    with Printer(_port(args)) as p:
+    port = _port(args)
+    print(f"Verbinde mit {port} …")
+    with Printer(port) as p:
         print(p.status().describe())
 
 
@@ -54,11 +56,15 @@ def cmd_print(args) -> None:
     printer = None
     if port:
         printer = Printer(port)
-        st = printer.status()
-        if not st.ok:
+        if args.no_status:
+            st = None
+            print("Drucke ohne Statusabfrage …")
+        else:
+            st = printer.status()
+        if st and not st.ok:
             printer.close()
             sys.exit(f"Drucker meldet Fehler:\n{st.describe()}")
-        if st.media_width_mm:
+        if st and st.media_width_mm:
             if tape and tape != st.media_width_mm:
                 print(f"Hinweis: eingelegt ist {st.media_width_mm:g} mm, nicht {tape:g} mm – "
                       "nehme eingelegtes Band.", file=sys.stderr)
@@ -84,9 +90,9 @@ def cmd_print(args) -> None:
         return
     try:
         for i in range(args.copies):
-            st = printer.print_job(job)
+            st = printer.print_job(job, wait=8 if args.no_status else 30)
             if st is None:
-                print("Keine Rückmeldung vom Drucker – bitte Ausdruck prüfen.", file=sys.stderr)
+                print("Daten gesendet, aber keine Rückmeldung vom Drucker – bitte Ausdruck prüfen.")
             elif not st.ok:
                 sys.exit(f"Fehler beim Druck:\n{st.describe()}")
             else:
@@ -130,12 +136,18 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--no-cut", action="store_true", help="nicht automatisch abschneiden")
     p.add_argument("--half-cut", action="store_true", help="Halbschnitt (Trägerpapier bleibt)")
     p.add_argument("--flip", action="store_true", help="Druck um 180° drehen, falls verkehrt")
+    p.add_argument("--no-status", action="store_true", help="ohne Statusabfrage drucken (--tape angeben)")
     p.add_argument("--dry-run", action="store_true", help="nur Auftrag als Datei schreiben")
     p.add_argument("--out", help="Zieldatei für --dry-run")
     p.set_defaults(func=cmd_print)
 
     args = ap.parse_args(argv)
-    args.func(args)
+    try:
+        args.func(args)
+    except TimeoutError as e:
+        sys.exit(f"FEHLER: {e}")
+    except OSError as e:  # u. a. serial.SerialException
+        sys.exit(f"FEHLER bei der Verbindung: {e}")
 
 
 if __name__ == "__main__":
