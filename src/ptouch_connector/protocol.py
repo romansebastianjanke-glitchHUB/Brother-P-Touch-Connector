@@ -48,6 +48,26 @@ ERRORS_2 = {
     0x20: "Überhitzung",
 }
 
+# Bandfarbe (Statusbyte 24) -> (Name, CSS-Farbe)
+TAPE_COLORS = {
+    0x01: ("weiß", "#ffffff"), 0x02: ("andere", "#dddddd"), 0x03: ("transparent", "#eef3f6"),
+    0x04: ("rot", "#d6403a"), 0x05: ("blau", "#2f6fd0"), 0x06: ("gelb", "#f6d23c"),
+    0x07: ("grün", "#3fa45b"), 0x08: ("schwarz", "#1d1d1d"), 0x09: ("transparent", "#eef3f6"),
+    0x20: ("matt weiß", "#f7f7f4"), 0x21: ("matt transparent", "#eef3f6"),
+    0x22: ("matt silber", "#c9ccd0"), 0x23: ("satin gold", "#d8b65c"),
+    0x24: ("satin silber", "#cfd2d6"), 0x30: ("blau", "#2f6fd0"), 0x31: ("rot", "#d6403a"),
+    0x40: ("neon-orange", "#ff8a2a"), 0x41: ("neon-gelb", "#e9f53b"),
+    0x50: ("beerenpink", "#d9407a"), 0x51: ("hellgrau", "#c8c8c8"), 0x52: ("limettengrün", "#9fd34a"),
+    0x60: ("gelb", "#f6d23c"), 0x61: ("pink", "#f48fb1"), 0x62: ("blau", "#5aa0e6"),
+    0x70: ("weiß (Schrumpfschlauch)", "#ffffff"), 0x90: ("weiß (flexibel)", "#ffffff"),
+    0x91: ("gelb (flexibel)", "#f6d23c"),
+}
+# Schriftfarbe (Statusbyte 25)
+TEXT_COLORS = {
+    0x01: ("weiß", "#ffffff"), 0x04: ("rot", "#d6403a"), 0x05: ("blau", "#2f6fd0"),
+    0x08: ("schwarz", "#111111"), 0x0A: ("gold", "#c9a440"), 0x62: ("blau", "#2f6fd0"),
+}
+
 STATUS_TYPES = {
     0x00: "Antwort auf Statusabfrage",
     0x01: "Druck abgeschlossen",
@@ -154,19 +174,43 @@ def build_job(
     half_cut: bool = False,
 ) -> bytes:
     """Kompletter Druckauftrag für ein Etikett."""
+    return build_multi_job([lines], width_mm, media_type=media_type, margin_dots=margin_dots,
+                           auto_cut=auto_cut, half_cut=half_cut)
+
+
+def build_multi_job(
+    pages: list[list[bytes]],
+    width_mm: float,
+    *,
+    media_type: int = 0x01,
+    margin_dots: int = 14,
+    auto_cut: bool = True,
+    half_cut: bool = False,
+) -> bytes:
+    """Mehrere Etiketten in einem Auftrag (spart Vorlauf-Band zwischen den Etiketten).
+
+    Seiten außer der letzten enden mit FF (0x0C, drucken ohne Vorschub),
+    die letzte mit Control-Z (0x1A, drucken und auswerfen).
+    """
     tape_spec(width_mm)
+    if not pages:
+        raise ValueError("Keine Etiketten im Auftrag")
     job = bytearray()
     job += INVALIDATE
     job += INITIALIZE
     job += RASTER_MODE
-    job += print_info(width_mm, len(lines), media_type)
-    job += mode_settings(auto_cut)
-    job += advanced_mode(half_cut=half_cut)
-    job += margin(margin_dots)
-    job += COMPRESSION_TIFF
-    for line in lines:
-        job += raster_line(line)
-    job += PRINT_AND_FEED
+    for i, lines in enumerate(pages):
+        last = i == len(pages) - 1
+        info = bytearray(print_info(width_mm, len(lines), media_type))
+        info[11] = 0x00 if i == 0 else 0x01  # n9: Startseite / Folgeseite
+        job += info
+        job += mode_settings(auto_cut)
+        job += advanced_mode(half_cut=half_cut)
+        job += margin(margin_dots)
+        job += COMPRESSION_TIFF
+        for line in lines:
+            job += raster_line(line)
+        job += PRINT_AND_FEED if last else b"\x0c"
     return bytes(job)
 
 
@@ -183,6 +227,8 @@ class Status:
     media_type_code: int
     status_type: str
     status_type_code: int
+    tape_color: tuple = ("unbekannt", "#ffffff")
+    text_color: tuple = ("schwarz", "#111111")
 
     @property
     def ok(self) -> bool:
@@ -193,7 +239,7 @@ class Status:
         lines = [
             f"Modellcode:   0x{self.model_code:02x}",
             f"Status:       {self.status_type}",
-            f"Band:         {width}, {self.media_type}",
+            f"Band:         {width}, {self.media_type}, {self.tape_color[0]} / Schrift {self.text_color[0]}",
             f"Fehler:       {', '.join(self.errors) if self.errors else 'keine'}",
         ]
         return "\n".join(lines)
@@ -213,4 +259,6 @@ def parse_status(data: bytes) -> Status:
         media_type_code=data[11],
         status_type=STATUS_TYPES.get(data[18], f"unbekannt (0x{data[18]:02x})"),
         status_type_code=data[18],
+        tape_color=TAPE_COLORS.get(data[24], ("unbekannt", "#ffffff")),
+        text_color=TEXT_COLORS.get(data[25], ("schwarz", "#111111")),
     )

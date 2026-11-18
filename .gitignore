@@ -13,3 +13,6 @@ letzter-lauf.txt
 .flip
 .ausrichtung-geprueft
 .transport
+studio-log.txt
+vorlagen/
+*.alt/

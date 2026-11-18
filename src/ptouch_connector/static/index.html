@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etiketten-Studio</title>
+<style>
+:root {
+  --bg: #f4f3f0; --panel: #ffffff; --ink: #1d1d1f; --muted: #6e6e73; --line: #e2e0db;
+  --accent: #1f6feb; --accent-ink: #ffffff; --warn-bg: #fff4d6; --warn-ink: #7a5300;
+  --err-bg: #fde7e7; --err-ink: #9b1c1c; --ok-bg: #e5f6ea; --ok-ink: #17602e;
+  --stage: #e9e7e2; --chip: #f1efeb; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161618; --panel: #1f1f22; --ink: #ececef; --muted: #9a9aa2; --line: #313136;
+    --accent: #4a8dff; --accent-ink: #0b0b0c; --warn-bg: #3a2f12; --warn-ink: #f3d27a;
+    --err-bg: #3d1717; --err-ink: #ffb4b4; --ok-bg: #12321d; --ok-ink: #9fe0b2;
+    --stage: #111113; --chip: #2a2a2e; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+header { display: flex; align-items: center; gap: 12px; padding: 10px 18px; background: var(--panel);
+  border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 999px;
+  background: var(--chip); font-size: 13px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #aaa; flex: none; }
+.dot.ok { background: #2ea043; } .dot.err { background: #d1242f; } .dot.wait { background: #d4a72c; }
+.swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); display: inline-grid;
+  place-items: center; font-size: 10px; font-weight: 700; }
+.spacer { flex: 1; }
+main { display: grid; grid-template-columns: minmax(330px, 420px) minmax(0, 1fr); gap: 16px; padding: 16px; align-items: start; }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } .right { position: static !important; } }
+.left { display: flex; flex-direction: column; gap: 12px; }
+.right { min-width: 0; position: sticky; top: 66px; display: flex; flex-direction: column; gap: 12px; }
+details, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+details > summary { cursor: pointer; padding: 12px 14px; font-weight: 600; list-style: none; display: flex; align-items: center; gap: 8px; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+details[open] > summary::before { transform: rotate(90deg); }
+.body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row > label, .field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 110px; }
+.lbl { font-size: 12px; color: var(--muted); }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+textarea { resize: vertical; min-height: 54px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+.check { flex-direction: row !important; align-items: center; gap: 6px !important; min-width: 0 !important; flex: none !important; cursor: pointer; }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 7px 11px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.big { padding: 12px 22px; font-size: 16px; }
+.btn.small { padding: 3px 8px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 10px; cursor: pointer; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.addbar { display: flex; flex-wrap: wrap; gap: 6px; }
+.item { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.item.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.item-head { display: flex; align-items: center; gap: 6px; }
+.item-head b { flex: 1; font-size: 13px; }
+.thumb { max-height: 54px; max-width: 160px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.hint { font-size: 12px; color: var(--muted); }
+.symgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
+.symgrid button { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; padding: 6px; }
+.symgrid button.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.symgrid svg { width: 100%; height: 100%; display: block; }
+.stage { background: var(--stage); border-radius: 12px; padding: 28px 16px; overflow: auto; min-height: 180px;
+  display: grid; place-items: center; border: 1px solid var(--line); }
+.tape { position: relative; display: flex; align-items: center; border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.12); }
+.tape .feed { align-self: stretch; background: repeating-linear-gradient(135deg, rgba(0,0,0,.06) 0 4px, transparent 4px 8px); }
+.tape canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.info { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 13px; }
+.info b { color: var(--ink); font-weight: 600; }
+.msg { padding: 8px 11px; border-radius: 8px; font-size: 13px; }
+.msg.warn { background: var(--warn-bg); color: var(--warn-ink); }
+.msg.err { background: var(--err-bg); color: var(--err-ink); }
+.msg.ok { background: var(--ok-bg); color: var(--ok-ink); }
+.printbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; }
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+.thumbs button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: #555; }
+.thumbs button.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.thumbs img { height: 26px; image-rendering: pixelated; }
+.tpl { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.tpl span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 3px dashed var(--accent);
+  display: none; place-items: center; font-size: 22px; font-weight: 600; z-index: 50; pointer-events: none; }
+.drop.on { display: grid; }
+.busy { opacity: .55; transition: opacity .2s; }
+kbd { background: var(--chip); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏷️ Etiketten-Studio</h1>
+  <span class="pill" id="status"><span class="dot wait"></span><span>Verbinde mit Drucker …</span></span>
+  <button class="btn small" id="refresh" title="Druckerstatus neu abfragen">↻ Status</button>
+  <span class="spacer"></span>
+  <button class="btn small" id="quit" title="Studio beenden">Beenden</button>
+</header>
+
+<main>
+<section class="left">
+
+  <details open id="sec-items">
+    <summary>Inhalt</summary>
+    <div class="body">
+      <div class="addbar">
+        <button class="btn" data-add="text">＋ Text</button>
+        <button class="btn" data-add="image">＋ Bild</button>
+        <button class="btn" data-add="symbol">＋ Symbol</button>
+        <button class="btn" data-add="qr">＋ QR-Code</button>
+        <button class="btn" data-add="barcode">＋ Barcode</button>
+        <button class="btn" data-add="spacer">＋ Abstand</button>
+      </div>
+      <div class="hint">Bilder einfügen: kopieren und hier <kbd>⌘</kbd><kbd>V</kbd> drücken, oder ins Fenster ziehen.
+        Platzhalter: <code>{n}</code> = Seriennummer/Listeneintrag, <code>{datum}</code> = heute.</div>
+      <div id="items" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Band &amp; Druck</summary>
+    <div class="body">
+      <div class="row">
+        <label><span class="lbl">Bandbreite</span><select data-k="tape" id="tape"></select></label>
+        <label><span class="lbl">Rand vor/nach (mm)</span><input type="number" data-k="margin_mm" min="2" max="50" step="0.5"></label>
+      </div>
+      <div class="row">
+        <label><span class="lbl">Schneiden</span>
+          <select data-k="cut"><option value="full">abschneiden</option><option value="half">Halbschnitt (Träger bleibt)</option><option value="none">nicht schneiden</option></select></label>
+        <label><span class="lbl">Kopien</span><input type="number" data-k="copies" min="1" max="99" step="1"></label>
+      </div>
+      <label class="check"><input type="checkbox" data-k="chain"> Mehrere Etiketten als ein Auftrag (spart Band)</label>
+      <div class="row">
+        <label class="check"><input type="checkbox" data-k="flip"> Druck um 180° drehen</label>
+        <button class="btn small" id="flipdefault">als Standard merken</button>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Gestaltung</summary>
+    <div class="body">
+      <div class="row">
+        <label><span class="lbl">Abstand zwischen Elementen (mm)</span><input type="number" data-k="gap_mm" min="0" max="50" step="0.5"></label>
+        <label><span class="lbl">Innenrand links/rechts (mm)</span><input type="number" data-k="padding_mm" min="0" max="50" step="0.5"></label>
+      </div>
+      <div class="row">
+        <label><span class="lbl">Etikettlänge (mm, 0 = automatisch)</span><input type="number" data-k="length_mm" min="0" max="1000" step="1"></label>
+        <label><span class="lbl">Ausrichtung bei fester Länge</span>
+          <select data-k="align"><option value="left">links</option><option value="center">mittig</option><option value="right">rechts</option></select></label>
+      </div>
+      <div class="row">
+        <label><span class="lbl">Rahmen</span>
+          <select data-k="frame"><option value="none">kein Rahmen</option><option value="rect">eckig</option><option value="round">abgerundet</option></select></label>
+        <label><span class="lbl">Rahmenstärke (Punkte)</span><input type="number" data-k="frame_px" min="1" max="12" step="1"></label>
+      </div>
+      <label class="check"><input type="checkbox" data-k="invert"> Invertiert (weiß auf schwarz)</label>
+    </div>
+  </details>
+
+  <details>
+    <summary>Serie &amp; Liste</summary>
+    <div class="body">
+      <div class="seg" id="seriesmode">
+        <button data-v="none">Aus</button><button data-v="numbers">Nummern</button><button data-v="list">Liste</button>
+      </div>
+      <div id="series-numbers" class="row">
+        <label><span class="lbl">Von</span><input type="number" data-s="start" step="1"></label>
+        <label><span class="lbl">Bis</span><input type="number" data-s="end" step="1"></label>
+        <label><span class="lbl">Schritt</span><input type="number" data-s="step" step="1"></label>
+        <label><span class="lbl">Stellen (001)</span><input type="number" data-s="digits" min="0" max="8" step="1"></label>
+      </div>
+      <div id="series-list">
+        <label class="field"><span class="lbl">Ein Eintrag pro Zeile (z. B. aus Excel/Sheets einfügen)</span>
+          <textarea data-s="list" rows="6" placeholder="Router&#10;Switch&#10;NAS"></textarea></label>
+      </div>
+      <div class="hint">Setze <code>{n}</code> in einen Text, QR-Code oder Barcode – pro Wert entsteht ein Etikett.</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Vorlagen</summary>
+    <div class="body">
+      <div class="row">
+        <input type="text" id="tplname" placeholder="Name der Vorlage">
+        <button class="btn" id="tplsave">Speichern</button>
+      </div>
+      <div id="tpllist"></div>
+      <button class="btn small" id="reset" style="align-self:flex-start">Neues leeres Etikett</button>
+    </div>
+  </details>
+
+</section>
+
+<section class="right">
+  <div class="card">
+    <div class="printbar">
+      <button class="btn primary big" id="print">Drucken</button>
+      <div class="info" id="info"></div>
+      <span class="spacer"></span>
+      <label class="row" style="gap:6px"><span class="lbl">Zoom</span>
+        <select id="zoom" style="width:auto"><option value="fit">Einpassen</option><option value="0.53">Originalgröße</option><option value="1">1 Punkt = 1 px</option><option value="2">2×</option><option value="4">4×</option></select></label>
+    </div>
+  </div>
+  <div class="stage" id="stage"><div class="hint">Vorschau wird erstellt …</div></div>
+  <div id="thumbs" class="thumbs"></div>
+  <div id="msgs" style="display:flex;flex-direction:column;gap:6px"></div>
+</section>
+</main>
+<div class="drop" id="drop">Bild hier loslassen</div>
+
+<script>
+"use strict";
+// ---------- Symbole (24×24, schwarz) ----------
+const S = (inner, fill) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fill ? "#000" : "none"}" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+const SYMBOLS = {
+  blitz: S('<polygon points="13 2 4 14 11 14 10 22 20 10 13 10 13 2"/>', true),
+  strom: S('<path d="M12 2v10"/><path d="M6.3 5.7a8 8 0 1 0 11.4 0"/>'),
+  stecker: S('<path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-12 0z"/><path d="M12 17v5"/>'),
+  wlan: S('<path d="M2 8.5a15 15 0 0 1 20 0"/><path d="M5 12a10 10 0 0 1 14 0"/><path d="M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.3" fill="#000"/>'),
+  bluetooth: S('<polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/>'),
+  monitor: S('<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'),
+  drucker: S('<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><rect x="7" y="14" width="10" height="7"/>'),
+  telefon: S('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>'),
+  akku: S('<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 10v4"/><rect x="5" y="10" width="8" height="4" fill="#000"/>'),
+  warnung: S('<path d="M12 3L22 20H2z"/><path d="M12 9v5"/><circle cx="12" cy="17" r="0.6" fill="#000"/>'),
+  info: S('<circle cx="12" cy="12" r="10"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r="0.6" fill="#000"/>'),
+  haken: S('<polyline points="4 12 10 18 20 6"/>'),
+  kreuz: S('<path d="M6 6l12 12M18 6L6 18"/>'),
+  pfeil_r: S('<path d="M4 12h15M13 6l6 6-6 6"/>'),
+  pfeil_o: S('<path d="M12 20V5M6 11l6-6 6 6"/>'),
+  haus: S('<path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/>'),
+  mail: S('<rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/>'),
+  kalender: S('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  ort: S('<path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>'),
+  schluessel: S('<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L21 2M17 6l3 3M15 8l2 2"/>'),
+  schloss: S('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+  lampe: S('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>'),
+  muell: S('<path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6"/>'),
+  glas: S('<path d="M8 3h8l-1 7a3 3 0 0 1-6 0z"/><path d="M12 13v7M8 21h8"/>'),
+  herz: S('<path d="M12 21s-8-5.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.5-8 11-8 11z"/>', true),
+  stern: S('<polygon points="12 2 15 9 22 9.3 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9.3 9 9"/>', true),
+  flamme: S('<path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-3 3-5 5-5 8 0 4 3 7 7 7z"/>', true),
+  tropfen: S('<path d="M12 2.5s7 7.5 7 12a7 7 0 0 1-14 0c0-4.5 7-12 7-12z"/>', true),
+  schnee: S('<path d="M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17"/>'),
+  musik: S('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>'),
+};
+
+// ---------- Zustand ----------
+let CFG = null, state = null, selected = 0, preview = null, showIdx = 0;
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const clone = o => JSON.parse(JSON.stringify(o));
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+const NEW = {
+  text: () => ({ type: "text", text: "Text", font: "", size_mode: "auto", size_pct: 100, size_px: 40, bold: false, italic: false, underline: false, align: "center", line_spacing: 10, valign: "center" }),
+  image: () => ({ type: "image", src: "", size_pct: 100, mode: "dither", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
+  symbol: () => ({ type: "symbol", key: "blitz", emoji: "", src: "", size_pct: 85, mode: "threshold", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
+  qr: () => ({ type: "qr", data: "https://", ecc: "M", size_pct: 100, valign: "center" }),
+  barcode: () => ({ type: "barcode", kind: "code128", data: "12345", module_px: 2, show_text: true, size_pct: 100, valign: "center" }),
+  spacer: () => ({ type: "spacer", width_mm: 5 }),
+};
+const NAMES = { text: "Text", image: "Bild", symbol: "Symbol", qr: "QR-Code", barcode: "Barcode", spacer: "Abstand" };
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json();
+}
+
+// ---------- Symbole rastern ----------
+function rasterize(svgOrEmoji, isEmoji) {
+  return new Promise(resolve => {
+    const c = document.createElement("canvas"); c.width = c.height = 512;
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, 512, 512);
+    if (isEmoji) {
+      g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#000";
+      g.font = '400px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      g.fillText(svgOrEmoji, 256, 280); resolve(c.toDataURL("image/png")); return;
+    }
+    const img = new Image();
+    img.onload = () => { g.drawImage(img, 16, 16, 480, 480); resolve(c.toDataURL("image/png")); };
+    img.onerror = () => resolve("");
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgOrEmoji.replace("<svg ", '<svg width="480" height="480" '));
+  });
+}
+async function updateSymbol(it) {
+  it.src = it.emoji ? await rasterize(it.emoji, true) : await rasterize(SYMBOLS[it.key] || SYMBOLS.blitz, false);
+}
+
+// ---------- Bilder laden (verkleinert) ----------
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height); resolve(c.toDataURL("image/png"));
+      };
+      img.onerror = reject; img.src = fr.result;
+    };
+    fr.onerror = reject; fr.readAsDataURL(file);
+  });
+}
+async function addImageFile(file) {
+  if (!file || !file.type.startsWith("image/")) return;
+  const it = NEW.image(); it.src = await fileToDataURL(file);
+  state.items.push(it); selected = state.items.length - 1; renderItems(); changed();
+}
+
+// ---------- Elementliste ----------
+const f = {
+  range: (k, lbl, min, max, step, unit = "") => `<label class="field"><span class="lbl">${lbl}: <b data-show="${k}"></b>${unit}</span><input type="range" data-i="${k}" min="${min}" max="${max}" step="${step}"></label>`,
+  num: (k, lbl, min, max, step) => `<label class="field"><span class="lbl">${lbl}</span><input type="number" data-i="${k}" min="${min}" max="${max}" step="${step}"></label>`,
+  check: (k, lbl) => `<label class="check"><input type="checkbox" data-i="${k}"> ${lbl}</label>`,
+  sel: (k, lbl, opts) => `<label class="field"><span class="lbl">${lbl}</span><select data-i="${k}">${opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></label>`,
+  text: (k, lbl, ph = "") => `<label class="field"><span class="lbl">${lbl}</span><textarea data-i="${k}" rows="2" placeholder="${ph}"></textarea></label>`,
+};
+const VALIGN = f.sel("valign", "Vertikal", [["center", "mittig"], ["top", "oben"], ["bottom", "unten"]]);
+const IMGOPTS = `<div class="row">${f.range("size_pct", "Größe", 10, 100, 1, " %")}${f.sel("rotate", "Drehen", [[0, "0°"], [90, "90°"], [180, "180°"], [270, "270°"]])}</div>
+  <div class="row">${f.sel("mode", "Rasterung", [["dither", "Graustufen gerastert (Fotos)"], ["threshold", "Schwarz/Weiß-Schwelle (Logos)"]])}${VALIGN}</div>
+  <div class="row">${f.range("threshold", "Schwelle", 1, 254, 1)}${f.range("contrast", "Kontrast", -80, 200, 5)}</div>
+  <div class="row">${f.check("invert", "invertieren")}${f.check("autocrop", "weißen Rand entfernen")}</div>`;
+
+function itemHTML(it, i) {
+  const n = state.items.length;
+  let body = "";
+  if (it.type === "text") {
+    const fonts = [["", "Standard (Helvetica)"], ...CFG.fonts.map(x => [x, x])];
+    body = `${f.text("text", "Text (Enter = neue Zeile)")}
+      <div class="row">${f.sel("font", "Schrift", fonts)}</div>
+      <div class="row">${f.sel("size_mode", "Größe", [["auto", "automatisch an Band anpassen"], ["fixed", "feste Größe (Punkte)"]])}
+        <span data-when="size_mode=auto" style="flex:1;min-width:110px">${f.range("size_pct", "Höhe", 20, 100, 1, " %")}</span>
+        <span data-when="size_mode=fixed" style="flex:1;min-width:110px">${f.num("size_px", "Punkte (180 dpi)", 6, 200, 1)}</span></div>
+      <div class="row">${f.check("bold", "<b>fett</b>")}${f.check("italic", "<i>kursiv</i>")}${f.check("underline", "<u>unterstrichen</u>")}</div>
+      <div class="row">${f.sel("align", "Zeilen ausrichten", [["left", "links"], ["center", "mittig"], ["right", "rechts"]])}${f.range("line_spacing", "Zeilenabstand", 0, 60, 1, " %")}</div>`;
+  } else if (it.type === "image") {
+    body = `<div class="row">${it.src ? `<img class="thumb" src="${it.src}">` : `<span class="hint">Noch kein Bild – ⌘V oder Datei wählen</span>`}
+      <label class="btn small">Datei wählen…<input type="file" accept="image/*" data-file hidden></label></div>${IMGOPTS}`;
+  } else if (it.type === "symbol") {
+    body = `<div class="symgrid">${Object.entries(SYMBOLS).map(([k, svg]) => `<button title="${k}" data-sym="${k}" class="${!it.emoji && it.key === k ? "on" : ""}">${svg}</button>`).join("")}</div>
+      <div class="row"><label class="field"><span class="lbl">…oder Emoji/Zeichen eingeben (z. B. ⚡ ☕ ♻️ ❄️)</span><input type="text" data-i="emoji" maxlength="8"></label></div>${IMGOPTS}`;
+  } else if (it.type === "qr") {
+    body = `${f.text("data", "Inhalt (Link, Text, WLAN …)", "https://…")}
+      <div class="row"><button class="btn small" data-wifi>WLAN-Zugang erstellen…</button></div>
+      <div class="row">${f.sel("ecc", "Fehlerkorrektur", [["L", "niedrig (kleiner)"], ["M", "mittel"], ["Q", "hoch"], ["H", "sehr hoch (größer)"]])}${f.range("size_pct", "Größe", 30, 100, 1, " %")}</div>`;
+  } else if (it.type === "barcode") {
+    body = `<div class="row">${f.sel("kind", "Typ", [["code128", "Code 128 (Text & Zahlen)"], ["code39", "Code 39"], ["ean13", "EAN-13 (12 Ziffern)"], ["ean8", "EAN-8 (7 Ziffern)"], ["upca", "UPC-A (11 Ziffern)"], ["isbn13", "ISBN-13"]])}</div>
+      ${f.text("data", "Inhalt")}
+      <div class="row">${f.num("module_px", "Strichbreite (Punkte)", 1, 6, 1)}${f.range("size_pct", "Höhe", 30, 100, 1, " %")}</div>
+      <div class="row">${f.check("show_text", "Klartext darunter")}</div>`;
+  } else if (it.type === "spacer") {
+    body = `<div class="row">${f.num("width_mm", "Breite (mm)", 0, 200, 0.5)}</div>`;
+  }
+  return `<div class="item ${i === selected ? "sel" : ""}" data-idx="${i}">
+    <div class="item-head"><b>${i + 1}. ${NAMES[it.type] || it.type}</b>
+      <button class="btn small" data-act="up" ${i === 0 ? "disabled" : ""} title="nach links">↑</button>
+      <button class="btn small" data-act="down" ${i === n - 1 ? "disabled" : ""} title="nach rechts">↓</button>
+      <button class="btn small" data-act="dup" title="duplizieren">⧉</button>
+      <button class="btn small" data-act="del" title="entfernen">✕</button></div>${body}</div>`;
+}
+
+function syncWhen(card, it) {
+  $$("[data-when]", card).forEach(el => {
+    const [k, v] = el.dataset.when.split("="); el.style.display = String(it[k]) === v ? "" : "none";
+  });
+  $$("[data-show]", card).forEach(el => { el.textContent = it[el.dataset.show]; });
+}
+
+function renderItems() {
+  const box = $("#items");
+  box.innerHTML = state.items.map(itemHTML).join("") || `<div class="hint">Noch leer – oben ein Element hinzufügen.</div>`;
+  $$(".item", box).forEach(card => {
+    const i = +card.dataset.idx, it = state.items[i];
+    $$("[data-i]", card).forEach(el => {
+      const k = el.dataset.i;
+      if (el.type === "checkbox") el.checked = !!it[k]; else el.value = it[k] ?? "";
+      el.addEventListener("input", async () => {
+        let v = el.type === "checkbox" ? el.checked : el.value;
+        if (el.type === "range" || el.type === "number" || k === "rotate") v = v === "" ? 0 : +v;
+        it[k] = v; syncWhen(card, it);
+        if (it.type === "symbol" && k === "emoji") await updateSymbol(it);
+        changed();
+      });
+    });
+    syncWhen(card, it);
+    card.addEventListener("focusin", () => selectItem(i));
+    card.addEventListener("click", () => selectItem(i));
+    $$("[data-act]", card).forEach(b => b.addEventListener("click", e => {
+      e.stopPropagation(); const a = b.dataset.act;
+      if (a === "del") state.items.splice(i, 1);
+      if (a === "dup") state.items.splice(i + 1, 0, clone(it));
+      if (a === "up" && i > 0) [state.items[i - 1], state.items[i]] = [state.items[i], state.items[i - 1]];
+      if (a === "down" && i < state.items.length - 1) [state.items[i + 1], state.items[i]] = [state.items[i], state.items[i + 1]];
+      selected = Math.max(0, Math.min(state.items.length - 1, a === "up" ? i - 1 : a === "down" ? i + 1 : i));
+      renderItems(); changed();
+    }));
+    $$("[data-sym]", card).forEach(b => b.addEventListener("click", async () => {
+      it.key = b.dataset.sym; it.emoji = ""; await updateSymbol(it); renderItems(); changed();
+    }));
+    const file = $("[data-file]", card);
+    if (file) file.addEventListener("change", async () => {
+      if (file.files[0]) { it.src = await fileToDataURL(file.files[0]); renderItems(); changed(); }
+    });
+    const wifi = $("[data-wifi]", card);
+    if (wifi) wifi.addEventListener("click", () => {
+      const ssid = prompt("WLAN-Name (SSID):"); if (ssid === null) return;
+      const pw = prompt("WLAN-Passwort (leer = offenes Netz):") ?? "";
+      const esc = s => s.replace(/([\\;,:"])/g, "\\$1");
+      it.data = `WIFI:T:${pw ? "WPA" : "nopass"};S:${esc(ssid)};${pw ? `P:${esc(pw)};` : ""};`;
+      renderItems(); changed();
+    });
+  });
+}
+function selectItem(i) {
+  if (selected === i) return; selected = i;
+  $$(".item").forEach(c => c.classList.toggle("sel", +c.dataset.idx === i));
+}
+
+// ---------- Globale Felder ----------
+function bindGlobals() {
+  const tape = $("#tape");
+  tape.innerHTML = `<option value="auto">Automatisch</option>` + CFG.tapes.map(t => `<option value="${t}">${String(t).replace(".", ",")} mm</option>`).join("");
+  $$("[data-k]").forEach(el => {
+    const k = el.dataset.k;
+    el.addEventListener("input", () => {
+      let v = el.type === "checkbox" ? el.checked : el.value;
+      if (el.type === "number") v = v === "" ? 0 : +v;
+      if (k === "tape" && v !== "auto") v = +v;
+      state[k] = v; changed();
+    });
+  });
+  $$("[data-s]").forEach(el => el.addEventListener("input", () => {
+    const k = el.dataset.s; state.series[k] = el.type === "number" ? +el.value : el.value; changed();
+  }));
+  $$("#seriesmode button").forEach(b => b.addEventListener("click", () => { state.series.mode = b.dataset.v; syncGlobals(); changed(); }));
+}
+function syncGlobals() {
+  $$("[data-k]").forEach(el => {
+    const v = state[el.dataset.k];
+    if (el.type === "checkbox") el.checked = !!v; else el.value = v ?? "";
+  });
+  $$("[data-s]").forEach(el => { el.value = state.series[el.dataset.s] ?? ""; });
+  const m = state.series.mode;
+  $$("#seriesmode button").forEach(b => b.classList.toggle("on", b.dataset.v === m));
+  $("#series-numbers").style.display = m === "numbers" ? "" : "none";
+  $("#series-list").style.display = m === "list" ? "" : "none";
+}
+
+// ---------- Vorschau ----------
+let timer = null, seq = 0;
+function changed() {
+  store.set("ptouch-studio-spec", state);
+  clearTimeout(timer); timer = setTimeout(refreshPreview, 220);
+}
+async function refreshPreview() {
+  const my = ++seq; $("#stage").classList.add("busy");
+  let res;
+  try { res = await api("/api/preview", state); } catch (e) { res = { error: String(e) }; }
+  if (my !== seq) return;
+  $("#stage").classList.remove("busy");
+  if (res.error) { $("#stage").innerHTML = `<div class="msg err">${res.error}</div>`; return; }
+  preview = res; if (showIdx >= res.images.length) showIdx = 0;
+  drawPreview(); drawThumbs(); drawInfo();
+}
+function currentColors() {
+  const st = CFG.status || {};
+  const autoTape = state.tape === "auto" || +state.tape === st.tape_mm;
+  return {
+    tape: st.known && autoTape ? st.tape_css : "#ffffff",
+    ink: st.known && autoTape ? st.text_css : "#111111",
+    name: st.known && autoTape ? `${st.tape_color} / Schrift ${st.text_color}` : "",
+  };
+}
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function drawPreview() {
+  const p = preview; if (!p) return;
+  const img = new Image();
+  img.onload = () => {
+    const colors = currentColors(), ink = hexToRgb(colors.ink);
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height), a = d.data;
+    for (let i = 0; i < a.length; i += 4) {
+      if (a[i] < 128) { a[i] = ink[0]; a[i + 1] = ink[1]; a[i + 2] = ink[2]; a[i + 3] = 255; } else a[i + 3] = 0;
+    }
+    g.putImageData(d, 0, 0);
+    const marginPx = Math.max(14, Math.round(state.margin_mm * 180 / 25.4));
+    const totalW = p.width_px + 2 * marginPx;
+    const stage = $("#stage"), avail = stage.clientWidth - 40;
+    const z = $("#zoom").value;
+    const k = z === "fit" ? Math.max(0.2, Math.min(6, avail / totalW, 260 / p.tape_px)) : +z;
+    const tape = document.createElement("div"); tape.className = "tape";
+    tape.style.background = colors.tape; tape.style.height = (p.tape_px * k) + "px";
+    tape.title = `Band ${p.tape_mm} mm` + (colors.name ? ` (${colors.name})` : "");
+    const feed = () => { const f = document.createElement("div"); f.className = "feed"; f.style.width = (marginPx * k) + "px"; return f; };
+    c.style.width = (p.width_px * k) + "px"; c.style.height = (p.pins * k) + "px";
+    tape.append(feed(), c, feed());
+    stage.innerHTML = ""; stage.append(tape);
+  };
+  img.src = p.images[showIdx];
+}
+function drawThumbs() {
+  const box = $("#thumbs"), p = preview;
+  if (!p || p.count <= 1) { box.innerHTML = ""; return; }
+  box.innerHTML = p.images.map((src, i) => `<button class="${i === showIdx ? "on" : ""}" data-t="${i}"><img src="${src}"><span>${p.values[i] ?? i + 1}</span></button>`).join("")
+    + (p.count > p.images.length ? `<span class="hint">… und ${p.count - p.images.length} weitere</span>` : "");
+  $$("[data-t]", box).forEach(b => b.addEventListener("click", () => { showIdx = +b.dataset.t; drawPreview(); drawThumbs(); }));
+}
+function drawInfo() {
+  const p = preview, total = p.count * Math.max(1, state.copies || 1);
+  $("#info").innerHTML = `<span>Band <b>${String(p.tape_mm).replace(".", ",")} mm</b>${state.tape === "auto" ? " (auto)" : ""}</span>
+    <span>Länge ca. <b>${String(p.length_mm).replace(".", ",")} mm</b></span>
+    <span><b>${total}</b> Etikett${total === 1 ? "" : "en"}</span>`;
+  $("#print").textContent = total > 1 ? `${total} Etiketten drucken` : "Drucken";
+  showMessages(p.warnings.map(w => ["warn", w]), "preview");
+}
+const MSG = { preview: [], print: [] };
+function showMessages(list, slot) {
+  MSG[slot] = list;
+  $("#msgs").innerHTML = [...MSG.print, ...MSG.preview].map(([t, m]) => `<div class="msg ${t}">${m}</div>`).join("");
+}
+
+// ---------- Drucker ----------
+function showStatus(st) {
+  CFG.status = st;
+  const el = $("#status");
+  if (st.known) {
+    const err = st.errors && st.errors.length;
+    el.innerHTML = `<span class="dot ${err ? "err" : "ok"}"></span>
+      <span>PT-P710BT · <b>${String(st.tape_mm ?? "?").replace(".", ",")} mm</b></span>
+      <span class="swatch" style="background:${st.tape_css};color:${st.text_css}" title="${st.tape_color} / Schrift ${st.text_color}">A</span>
+      <span>${err ? st.errors.join(", ") : "bereit"}</span>`;
+  } else if (st.error) {
+    el.innerHTML = `<span class="dot err"></span><span title="${st.error}">Drucker nicht erreichbar</span>`;
+  } else {
+    el.innerHTML = `<span class="dot wait"></span><span>Verbinde mit Drucker …</span>`;
+  }
+}
+async function pollStatus() {
+  for (let i = 0; i < 60; i++) {
+    const st = await api("/api/status");
+    if (st.known || st.error) { showStatus(st); drawPreview(); if (state.tape === "auto") refreshPreview(); return; }
+    await new Promise(r => setTimeout(r, 1500));
+  }
+}
+$("#refresh").addEventListener("click", async () => {
+  showStatus({ known: false });
+  showStatus(await api("/api/status?refresh=1")); refreshPreview();
+});
+$("#print").addEventListener("click", async () => {
+  const btn = $("#print"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Drucke …";
+  showMessages([["warn", "Verbinde und drucke – das dauert ein paar Sekunden …"]], "print");
+  try {
+    const r = await api("/api/print", state);
+    if (r.status) showStatus(r.status);
+    if (r.ok) showMessages([["ok", "✓ " + r.messages.join(" · ")]], "print");
+    else showMessages([["err", "Nicht gedruckt: " + r.error]], "print");
+  } catch (e) { showMessages([["err", "Verbindung zum Studio verloren: " + e]], "print"); }
+  btn.disabled = false; btn.textContent = label;
+});
+$("#flipdefault").addEventListener("click", async () => {
+  await api("/api/flip-default", { flip: !!state.flip });
+  showMessages([["ok", `Gemerkt: Drehen ist ab jetzt standardmäßig ${state.flip ? "an" : "aus"}.`]], "print");
+});
+$("#quit").addEventListener("click", async () => {
+  if (!confirm("Etiketten-Studio beenden?")) return;
+  await api("/api/quit", {}); document.body.innerHTML = `<div style="padding:40px;font-size:18px">Studio beendet. Dieses Fenster kann geschlossen werden.</div>`;
+});
+$("#zoom").addEventListener("change", drawPreview);
+window.addEventListener("resize", () => { clearTimeout(window._rz); window._rz = setTimeout(drawPreview, 150); });
+
+// ---------- Vorlagen ----------
+function renderTemplates(list) {
+  $("#tpllist").innerHTML = list.length ? list.map(n => `<div class="tpl"><span>${n.replace(/</g, "&lt;")}</span>
+    <button class="btn small" data-load="${encodeURIComponent(n)}">Laden</button>
+    <button class="btn small" data-delt="${encodeURIComponent(n)}">✕</button></div>`).join("") : `<div class="hint">Noch keine Vorlagen gespeichert.</div>`;
+  $$("[data-load]").forEach(b => b.addEventListener("click", async () => {
+    const spec = await api("/api/template?name=" + b.dataset.load);
+    if (spec.error) return alert(spec.error);
+    loadSpec(spec); $("#tplname").value = decodeURIComponent(b.dataset.load);
+  }));
+  $$("[data-delt]").forEach(b => b.addEventListener("click", async () => {
+    const n = decodeURIComponent(b.dataset.delt); if (!confirm(`Vorlage „${n}“ löschen?`)) return;
+    renderTemplates((await api("/api/template/delete", { name: n })).templates);
+  }));
+}
+$("#tplsave").addEventListener("click", async () => {
+  const name = $("#tplname").value.trim(); if (!name) return $("#tplname").focus();
+  const r = await api("/api/template", { name, spec: state }); renderTemplates(r.templates);
+  showMessages([["ok", `Vorlage „${name}“ gespeichert.`]], "print");
+});
+$("#reset").addEventListener("click", () => {
+  if (!confirm("Aktuelles Etikett verwerfen?")) return;
+  const s = clone(CFG.defaults); s.flip = CFG.flip_default; s.items = [NEW.text()]; loadSpec(s);
+});
+function loadSpec(spec) {
+  const s = Object.assign(clone(CFG.defaults), clone(spec));
+  s.series = Object.assign(clone(CFG.defaults.series), s.series || {});
+  s.items = (s.items || []).map(it => Object.assign(NEW[it.type] ? NEW[it.type]() : {}, it));
+  state = s; selected = 0; showIdx = 0;
+  syncGlobals(); renderItems(); changed();
+}
+
+// ---------- Einfügen & Ziehen ----------
+document.addEventListener("paste", e => {
+  const items = [...(e.clipboardData?.items || [])];
+  const imgItem = items.find(x => x.type.startsWith("image/"));
+  if (imgItem) { e.preventDefault(); addImageFile(imgItem.getAsFile()); }
+});
+let dragDepth = 0;
+window.addEventListener("dragenter", e => { if ([...e.dataTransfer.types].includes("Files")) { dragDepth++; $("#drop").classList.add("on"); } });
+window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("#drop").classList.remove("on"); } });
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => {
+  e.preventDefault(); dragDepth = 0; $("#drop").classList.remove("on");
+  [...(e.dataTransfer?.files || [])].forEach(addImageFile);
+});
+
+// ---------- Hinzufügen ----------
+$$("[data-add]").forEach(b => b.addEventListener("click", async () => {
+  const it = NEW[b.dataset.add]();
+  if (it.type === "symbol") await updateSymbol(it);
+  state.items.push(it); selected = state.items.length - 1; renderItems(); changed();
+  const card = $(`.item[data-idx="${selected}"]`); if (card) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  if (it.type === "image") { const fi = $("[data-file]", card); if (fi) fi.click(); }
+}));
+
+// ---------- Start ----------
+(async function init() {
+  CFG = await api("/api/config");
+  bindGlobals();
+  const saved = store.get("ptouch-studio-spec");
+  const s = saved || Object.assign(clone(CFG.defaults), { flip: CFG.flip_default, items: [Object.assign(NEW.text(), { text: "Hallo" })] });
+  loadSpec(s);
+  for (const it of state.items) if (it.type === "symbol" && !it.src) await updateSymbol(it);
+  renderTemplates(CFG.templates);
+  showStatus(CFG.status);
+  if (!CFG.status.known) pollStatus();
+})();
+</script>
+</body>
+</html>

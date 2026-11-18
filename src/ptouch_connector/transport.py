@@ -87,20 +87,28 @@ class Printer:
         detail = f"{received} Bytes empfangen" + (f": {bytes(buf[:64]).hex()}" if buf else "")
         raise TimeoutError(f"[{self.name}] keine gültige Statusantwort nach {attempts} Versuchen ({detail})")
 
-    def print_job(self, job: bytes, wait: float = 30.0) -> Status | None:
-        """Auftrag senden und auf 'Druck abgeschlossen' bzw. Fehler warten."""
+    def print_job(self, job: bytes, wait: float = 30.0, expect: int = 1) -> Status | None:
+        """Auftrag senden und auf `expect`-mal 'Druck abgeschlossen' bzw. einen Fehler warten."""
         self._drain()
         self._send(job)
         buf = bytearray()
         deadline = time.monotonic() + wait
         last = None
+        done = 0
         while time.monotonic() < deadline:
             st = self._read_until_status(buf, deadline - time.monotonic())
             if st is None:
                 break
             last = st
-            if st.status_type_code in (0x01, 0x02):  # fertig oder Fehler
+            if st.status_type_code == 0x02:  # Fehler
                 return st
+            if st.status_type_code == 0x01:
+                done += 1
+                if done >= expect:
+                    return st
+                # ob der Drucker jede Seite einzeln meldet, ist nicht sicher:
+                # nach einer Fertig-Meldung nur noch begrenzt auf weitere warten
+                deadline = time.monotonic() + 15
         return last
 
 

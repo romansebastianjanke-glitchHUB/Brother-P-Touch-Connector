@@ -3,6 +3,24 @@
 Etiketten auf einem **Brother PT-P710BT** per **Bluetooth** drucken – vom Mac aus,
 ohne Brother-Software. Spricht direkt das Raster-Protokoll des Druckers.
 
+## Etiketten-Studio (empfohlen)
+
+**`Etiketten-Studio.command`** doppelklicken – im Browser öffnet sich eine Oberfläche mit
+Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
+
+- **Elemente** nebeneinander: Text, Bild, Symbol, QR-Code, Barcode, Abstand – verschieben, duplizieren
+- **Text:** jede installierte Schrift, automatische oder feste Größe, fett/kursiv/unterstrichen, mehrzeilig
+- **Bilder:** kopieren und **⌘V** drücken oder ins Fenster ziehen – werden proportional aufs Band
+  skaliert und in Schwarzweiß gerastert (Fotos) oder per Schwelle (Logos), mit Kontrast, Drehen, Invertieren
+- **Symbole:** 30 eingebaute Icons oder beliebiges Emoji
+- **QR-Codes** (inkl. WLAN-Zugang) und **Barcodes** (Code 128/39, EAN, UPC, ISBN)
+- **Gestaltung:** Rahmen, invertiert, feste Etikettlänge, Abstände
+- **Serien:** fortlaufende Nummern oder eine Liste – Platzhalter `{n}`, dazu `{datum}`
+- **Druck:** Kopien, Schnitt/Halbschnitt, Rand, Serie als ein Auftrag, 180°-Drehung
+- **Vorlagen** speichern und laden (Ordner `vorlagen/`)
+
+Das Terminal-Fenster muss offen bleiben, solange das Studio läuft.
+
 ## Am einfachsten: per Doppelklick (ohne Terminal-Kenntnisse)
 
 1. Auf der GitHub-Seite grüner Button **„Code“ → „Download ZIP“**, ZIP im Finder doppelklicken.
@@ -28,7 +46,7 @@ Die Ausgabe jedes Laufs steht in `letzter-lauf.txt` – die kannst du bei Proble
    git clone https://github.com/romansebastianjanke-glitchHUB/Brother-P-Touch-Connector.git
    cd Brother-P-Touch-Connector
    python3 -m venv .venv && source .venv/bin/activate
-   pip install -e ".[dev]"
+   pip install -e ".[dev]"   # Studio zusätzlich: pip install qrcode python-barcode
    ```
 
 3. **Port prüfen:**
@@ -90,4 +108,5 @@ pytest
 
 Der Code ist in `src/ptouch_connector/`:
 `protocol.py` (Raster-Befehle, Status), `render.py` (Text/Bild → Rasterzeilen),
-`transport.py` (Bluetooth-Seriell), `cli.py` (Kommandozeile).
+`transport.py` (Bluetooth), `cli.py` (Kommandozeile), `layout.py` (Etiketten-Layout),
+`studio.py` + `static/index.html` (Etiketten-Studio).
