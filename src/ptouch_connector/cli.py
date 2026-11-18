@@ -1,0 +1,142 @@
+"""Kommandozeile: `ptouch ports | status | preview | print`."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+from . import protocol, render
+from .transport import Printer, find_ports
+
+
+def _port(args) -> str:
+    if args.port:
+        return args.port
+    ports = find_ports()
+    if not ports:
+        sys.exit(
+            "Kein Drucker-Port gefunden. PT-P710BT einschalten, in den macOS-Bluetooth-"
+            "Einstellungen koppeln und mit `ptouch ports` prüfen – oder --port angeben."
+        )
+    if len(ports) > 1:
+        print(f"Mehrere Ports gefunden, nehme {ports[0]}: {', '.join(ports)}", file=sys.stderr)
+    return ports[0]
+
+
+def _image(args, tape: float):
+    if args.image:
+        return render.load_image(args.image, tape)
+    text = args.text.replace("\\n", "\n")
+    return render.render_text(text, tape, font_path=args.font)
+
+
+def cmd_ports(args) -> None:
+    ports = find_ports()
+    print("\n".join(ports) if ports else "Keine passenden Ports gefunden.")
+
+
+def cmd_status(args) -> None:
+    with Printer(_port(args)) as p:
+        print(p.status().describe())
+
+
+def cmd_preview(args) -> None:
+    img = _image(args, args.tape)
+    render.preview(img, args.out)
+    length_mm = img.width / protocol.DPI * 25.4
+    print(f"Vorschau: {args.out} ({img.width} Zeilen ≈ {length_mm:.0f} mm + Ränder)")
+
+
+def cmd_print(args) -> None:
+    port = None if args.dry_run else _port(args)
+    tape = args.tape
+    media_type = 0x01
+    printer = None
+    if port:
+        printer = Printer(port)
+        st = printer.status()
+        if not st.ok:
+            printer.close()
+            sys.exit(f"Drucker meldet Fehler:\n{st.describe()}")
+        if st.media_width_mm:
+            if tape and tape != st.media_width_mm:
+                print(f"Hinweis: eingelegt ist {st.media_width_mm:g} mm, nicht {tape:g} mm – "
+                      "nehme eingelegtes Band.", file=sys.stderr)
+            tape = st.media_width_mm
+            media_type = st.media_type_code
+    if not tape:
+        tape = 12
+    img = _image(args, tape)
+    lines = render.to_raster_lines(img, tape, flip=args.flip)
+    job = protocol.build_job(
+        lines,
+        tape,
+        media_type=media_type,
+        margin_dots=args.margin,
+        auto_cut=not args.no_cut,
+        half_cut=args.half_cut,
+    )
+    if args.dry_run:
+        out = args.out or "job.bin"
+        with open(out, "wb") as f:
+            f.write(job)
+        print(f"Testlauf: {len(job)} Bytes nach {out} geschrieben ({tape:g} mm Band).")
+        return
+    try:
+        for i in range(args.copies):
+            st = printer.print_job(job)
+            if st is None:
+                print("Keine Rückmeldung vom Drucker – bitte Ausdruck prüfen.", file=sys.stderr)
+            elif not st.ok:
+                sys.exit(f"Fehler beim Druck:\n{st.describe()}")
+            else:
+                print(f"Etikett {i + 1}/{args.copies} gedruckt ({tape:g} mm).")
+    finally:
+        printer.close()
+
+
+def main(argv: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(prog="ptouch", description="Brother PT-P710BT über Bluetooth")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    def add_port(p):
+        p.add_argument("--port", help="z. B. /dev/cu.PT-P710BT1234 (Standard: automatisch)")
+
+    def add_content(p):
+        g = p.add_mutually_exclusive_group(required=True)
+        g.add_argument("text", nargs="?", help="Etikettentext, \\n für Zeilenumbruch")
+        g.add_argument("--image", help="Bilddatei statt Text")
+        p.add_argument("--font", help="Pfad zu einer TTF/TTC-Schrift")
+        p.add_argument("--tape", type=float, choices=list(protocol.TAPE_SPECS),
+                       help="Bandbreite in mm (beim Drucken automatisch erkannt)")
+
+    p = sub.add_parser("ports", help="Bluetooth-Ports auflisten")
+    p.set_defaults(func=cmd_ports)
+
+    p = sub.add_parser("status", help="Druckerstatus abfragen")
+    add_port(p)
+    p.set_defaults(func=cmd_status)
+
+    p = sub.add_parser("preview", help="Vorschau als PNG speichern, ohne zu drucken")
+    add_content(p)
+    p.add_argument("--out", default="preview.png")
+    p.set_defaults(func=cmd_preview, tape=12)
+
+    p = sub.add_parser("print", help="Etikett drucken")
+    add_content(p)
+    add_port(p)
+    p.add_argument("--copies", type=int, default=1)
+    p.add_argument("--margin", type=int, default=14, help="Rand in Punkten (14 ≈ 2 mm)")
+    p.add_argument("--no-cut", action="store_true", help="nicht automatisch abschneiden")
+    p.add_argument("--half-cut", action="store_true", help="Halbschnitt (Trägerpapier bleibt)")
+    p.add_argument("--flip", action="store_true", help="Druck um 180° drehen, falls verkehrt")
+    p.add_argument("--dry-run", action="store_true", help="nur Auftrag als Datei schreiben")
+    p.add_argument("--out", help="Zieldatei für --dry-run")
+    p.set_defaults(func=cmd_print)
+
+    args = ap.parse_args(argv)
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
