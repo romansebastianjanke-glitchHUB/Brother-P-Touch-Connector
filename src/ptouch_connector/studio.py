@@ -296,14 +296,26 @@ def main(argv=None) -> None:
     args = ap.parse_args(argv)
 
     studio = Studio(Path(args.home).resolve())
-    try:
-        server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(studio))
-    except OSError:
-        url = f"http://127.0.0.1:{args.port}/"
-        print(f"Das Studio läuft offenbar schon – öffne {url}")
-        if not args.no_browser:
-            webbrowser.open(url)
-        return
+    server = None
+    for attempt in range(2):
+        try:
+            server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(studio))
+            break
+        except OSError:
+            if attempt:
+                break
+            # läuft noch ein älteres Studio? Dann beenden, damit die neue Version startet
+            log("Beende das bereits laufende Studio …")
+            try:
+                import urllib.request
+                req = urllib.request.Request(f"http://127.0.0.1:{args.port}/api/quit", b"{}",
+                                             {"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=5).read()
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(2)
+    if server is None:
+        sys.exit(f"Port {args.port} ist belegt – bitte das andere Studio-Fenster schließen und neu starten.")
     url = f"http://127.0.0.1:{args.port}/"
     threading.Thread(target=server.serve_forever, daemon=True).start()
     log(f"Etiketten-Studio läuft: {url}  (Verbindung: {studio.transport})")

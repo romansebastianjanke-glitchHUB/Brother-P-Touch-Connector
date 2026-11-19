@@ -72,6 +72,8 @@ def list_fonts() -> dict[str, str]:
 
 
 def _font(name: str | None, size: int):
+    if name == "__builtin__":  # in Pillow eingebaute Schrift, letzter Rückfall
+        return ImageFont.load_default(size=size)
     path = list_fonts().get(name or "")
     if not path:
         for c in FONT_CANDIDATES:
@@ -129,6 +131,27 @@ def decode_data_url(src: str) -> Image.Image:
 
 
 def render_text(item: dict, h: int, value: str | None, warnings: list[str]) -> Image.Image:
+    """Text setzen; scheitert die Schrift in FreeType, mit Ersatzschriften erneut versuchen."""
+    try:
+        return _render_text(item, h, value, warnings)
+    except OSError as e:
+        name = item.get("font") or "Standardschrift (Helvetica)"
+        warnings.append(f"Schrift „{name}“{' fett' if item.get('bold') else ''} lässt sich nicht "
+                        f"zeichnen ({e}) – verwende eine Ersatzschrift.")
+        tries = []
+        if item.get("font") or item.get("bold"):
+            tries.append(dict(item, font="", bold=False))
+        tries.append(dict(item, font="__builtin__", bold=False))
+        for i, alt in enumerate(tries):
+            try:
+                return _render_text(alt, h, value, warnings)
+            except OSError:
+                if i == len(tries) - 1:
+                    raise
+        raise
+
+
+def _render_text(item: dict, h: int, value: str | None, warnings: list[str]) -> Image.Image:
     text = substitute(str(item.get("text", "")), value).replace("\\n", "\n")
     if not text.strip():
         return _blank(1, h)
@@ -285,6 +308,20 @@ def render_barcode(item: dict, h: int, value: str | None, warnings: list[str]) -
 
 
 def render_item(item: dict, h: int, value: str | None, warnings: list[str]) -> Image.Image:
+    """Ein Element rendern; Fehler werden zur Warnung, statt die ganze Vorschau zu blockieren."""
+    try:
+        return _render_item(item, h, value, warnings)
+    except Exception as e:  # noqa: BLE001
+        import traceback
+
+        traceback.print_exc()
+        what = {"text": "Text", "image": "Bild", "symbol": "Symbol", "qr": "QR-Code",
+                "barcode": "Barcode", "spacer": "Abstand"}.get(item.get("type"), "Element")
+        warnings.append(f"{what} konnte nicht erstellt werden: {type(e).__name__}: {e}")
+        return _blank(1, h)
+
+
+def _render_item(item: dict, h: int, value: str | None, warnings: list[str]) -> Image.Image:
     t = item.get("type")
     if t == "text":
         img = render_text(item, h, value, warnings)

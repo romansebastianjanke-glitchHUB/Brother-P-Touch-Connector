@@ -68,3 +68,42 @@ def test_multi_job():
     job = protocol.build_multi_job(pages, 12)
     assert job.count(b"\x1b\x69\x7a") == 2
     assert job.endswith(b"\x1a") and b"\x0c\x1b\x69\x7a" in job
+
+
+def test_broken_font_falls_back(monkeypatch):
+    calls = {"n": 0}
+    real = layout._font
+
+    def flaky(name, size):
+        if name == "Kaputt":
+            calls["n"] += 1
+            raise OSError("division by zero")
+        return real(name, size)
+
+    monkeypatch.setattr(layout, "_font", flaky)
+    monkeypatch.setattr(layout, "list_fonts", lambda: {"Kaputt": "/x.ttf"})
+    img, w = layout.render_label({"items": [{"type": "text", "text": "Hallo", "font": "Kaputt", "bold": True}]}, 12)
+    assert calls["n"] >= 1 and img.width > 20
+    assert any("Kaputt" in m and "Ersatzschrift" in m for m in w)
+
+
+def test_failing_item_does_not_break_label(monkeypatch):
+    def boom(*a, **k):
+        raise ZeroDivisionError("division by zero")
+
+    monkeypatch.setattr(layout, "render_qr", boom)
+    img, w = layout.render_label({"items": [{"type": "text", "text": "OK"}, {"type": "qr", "data": "x"}]}, 12)
+    assert img.width > 10 and any("QR-Code konnte nicht" in m for m in w)
+
+
+def test_broken_default_font_uses_builtin(monkeypatch):
+    real = layout._font
+
+    def flaky(name, size):
+        if name != "__builtin__":
+            raise OSError("division by zero")
+        return real(name, size)
+
+    monkeypatch.setattr(layout, "_font", flaky)
+    img, w = layout.render_label({"items": [{"type": "text", "text": "Hallo"}]}, 12)
+    assert img.width > 20 and any("Ersatzschrift" in m for m in w)
