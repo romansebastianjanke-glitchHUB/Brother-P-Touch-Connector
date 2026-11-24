@@ -8,14 +8,18 @@ ohne Brother-Software. Spricht direkt das Raster-Protokoll des Druckers.
 **`Etiketten-Studio.command`** doppelklicken – im Browser öffnet sich eine Oberfläche mit
 Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
 
-- **Elemente** nebeneinander: Text, Bild, Symbol, QR-Code, Barcode, Abstand – verschieben, duplizieren
+- **Schnellstart:** Nummernschild (große Nummer + Trennlinie) und QR-Nummer (QR mit 5-stelliger Zahl)
+- **Elemente** nebeneinander: Nummer, Text, Bild, Symbol, QR-Code, Barcode, Abstand – verschieben, duplizieren
+- **Nummer:** groß links oder rechts am Rand verankert, optional mit Trennlinie
 - **Text:** jede installierte Schrift, automatische oder feste Größe, fett/kursiv/unterstrichen, mehrzeilig
 - **Bilder:** kopieren und **⌘V** drücken oder ins Fenster ziehen – werden proportional aufs Band
   skaliert und in Schwarzweiß gerastert (Fotos) oder per Schwelle (Logos), mit Kontrast, Drehen, Invertieren
 - **Symbole:** 30 eingebaute Icons oder beliebiges Emoji
 - **QR-Codes** (inkl. WLAN-Zugang) und **Barcodes** (Code 128/39, EAN, UPC, ISBN)
 - **Gestaltung:** Rahmen, invertiert, feste Etikettlänge, Abstände
-- **Serien:** fortlaufende Nummern oder eine Liste – Platzhalter `{n}`, dazu `{datum}`
+- **Serien:** fortlaufende Nummern oder eingefügte Liste, als bearbeitbare Liste unter der Vorschau –
+  jeder Wert änderbar, jedes Etikett auf Wunsch komplett einzeln gestaltbar (Platzhalter `{n}`, `{datum}`)
+- **Bandfarbe & Schriftfarbe** für die Vorschau wählbar (oder automatisch vom Drucker)
 - **Druck:** Kopien, Schnitt/Halbschnitt, Rand, Serie als ein Auftrag, 180°-Drehung
 - **Vorlagen** speichern und laden (Ordner `vorlagen/`)
 

@@ -325,6 +325,9 @@ def _render_item(item: dict, h: int, value: str | None, warnings: list[str]) -> 
     t = item.get("type")
     if t == "text":
         img = render_text(item, h, value, warnings)
+    elif t == "number":
+        num = dict(item, text=item.get("text") or "{n}")
+        img = render_text(num, h, value if value is not None else "01", warnings)
     elif t in ("image", "symbol"):
         img = render_image(item, h, warnings)
     elif t == "qr":
@@ -349,62 +352,148 @@ def _render_item(item: dict, h: int, value: str | None, warnings: list[str]) -> 
 # --- Etikett ---------------------------------------------------------------------
 
 
-def series_values(spec: dict) -> list[str | None]:
+def _generated_values(s: dict) -> list[str]:
+    start, end = int(s.get("start", 1)), int(s.get("end", 1))
+    step = int(s.get("step", 1)) or 1
+    if (end - start) * step < 0:
+        step = -step
+    digits = int(s.get("digits", 0))
+    vals = list(range(start, end + (1 if step > 0 else -1), step))[:500]
+    return [str(v).zfill(digits) for v in vals]
+
+
+def series_rows(spec: dict) -> list[dict]:
+    """Etiketten einer Serie: [{"value": "01", "items": None | [...]}, …].
+
+    `items` = eigene Elemente nur für dieses Etikett, sonst gelten die Vorlage-Elemente.
+    Ältere Vorlagen ohne `rows` (mode numbers/list) werden weiter unterstützt.
+    """
     s = spec.get("series") or {}
     mode = s.get("mode", "none")
+    if mode == "none" or not mode:
+        return [{"value": None, "items": None}]
+    rows = s.get("rows")
+    if isinstance(rows, list) and rows:
+        out = []
+        for r in rows[:500]:
+            if isinstance(r, dict):
+                out.append({"value": str(r.get("value", "")), "items": r.get("items") or None})
+            else:
+                out.append({"value": str(r), "items": None})
+        return out
     if mode == "numbers":
-        start, end = int(s.get("start", 1)), int(s.get("end", 1))
-        step = int(s.get("step", 1)) or 1
-        if (end - start) * step < 0:
-            step = -step
-        digits = int(s.get("digits", 0))
-        vals = list(range(start, end + (1 if step > 0 else -1), step))[:500]
-        return [str(v).zfill(digits) for v in vals]
-    if mode == "list":
-        vals = [ln.strip() for ln in str(s.get("list", "")).splitlines() if ln.strip()]
-        return vals[:500] or [None]
-    return [None]
+        vals = _generated_values(s)
+    elif mode == "list":
+        vals = [ln.strip() for ln in str(s.get("list", "")).splitlines() if ln.strip()][:500]
+    else:
+        vals = []
+    return [{"value": v, "items": None} for v in vals] or [{"value": None, "items": None}]
 
 
-def render_label(spec: dict, tape_mm: float, value: str | None = None) -> tuple[Image.Image, list[str]]:
-    """Ein Etikett als Schwarzweißbild (L-Modus, Höhe = bedruckbare Pins)."""
+def series_values(spec: dict) -> list[str | None]:
+    return [r["value"] for r in series_rows(spec)]
+
+
+def render_label(spec: dict, tape_mm: float, value: str | None = None,
+                 items: list | None = None) -> tuple[Image.Image, list[str]]:
+    """Ein Etikett als Schwarzweißbild (L-Modus, Höhe = bedruckbare Pins).
+
+    Aufbau: [Nummer links] | [übrige Elemente] | [Nummer rechts]. Nummern-Elemente
+    mit Position links/rechts bleiben bei fester Etikettlänge am Rand stehen,
+    die übrigen Elemente werden im Rest ausgerichtet. Optional mit Trennlinie.
+    """
     _, h = tape_spec(tape_mm)
     warnings: list[str] = []
     frame = spec.get("frame", "none")
     fpx = int(spec.get("frame_px", 2)) if frame != "none" else 0
     inner_pad_v = fpx + (2 if fpx else 0)
     inner_h = max(4, h - 2 * inner_pad_v)
-
-    parts = [render_item(it, inner_h, value, warnings) for it in spec.get("items", []) if it]
-    parts = [p for p in parts if p.width > 1] or [_blank(1, inner_h)]
     gap = int(float(spec.get("gap_mm", 2)) * MM)
-    content_w = sum(p.width for p in parts) + gap * (len(parts) - 1)
-    content = _blank(content_w, inner_h)
-    x = 0
-    for p in parts:
-        content.paste(p, (x, 0))
-        x += p.width + gap
+
+    src_items = [it for it in (items if items is not None else spec.get("items", [])) if it]
+    left_items = [it for it in src_items if it.get("type") == "number" and it.get("position", "left") == "left"]
+    right_items = [it for it in src_items if it.get("type") == "number" and it.get("position") == "right"]
+    mid_items = [it for it in src_items if it not in left_items and it not in right_items]
+
+    def strip(its):
+        parts = [render_item(it, inner_h, value, warnings) for it in its]
+        return [(p, it) for p, it in zip(parts, its) if p.width > 1]
+
+    def join(parts):
+        if not parts:
+            return None
+        w = sum(p.width for p, _ in parts) + gap * (len(parts) - 1)
+        c = _blank(w, inner_h)
+        x = 0
+        for p, _ in parts:
+            c.paste(p, (x, 0))
+            x += p.width + gap
+        return c
+
+    left = strip(left_items)
+    right = strip(right_items)
+    mid = join(strip(mid_items))
+    lblk, rblk = join(left), join(right)
+    l_div = any(it.get("divider") for _, it in left)
+    r_div = any(it.get("divider") for _, it in right)
+    div_w = max([int(it.get("divider_px", 2)) for _, it in left + right if it.get("divider")] or [0])
+    # Abstand neben einer Trennlinie: auf beiden Seiten ein Elementabstand
+    l_gap = (2 * gap + div_w) if l_div else gap
+    r_gap = (2 * gap + div_w) if r_div else gap
 
     pad = int(float(spec.get("padding_mm", 1)) * MM) + fpx + (3 if fpx else 0)
-    width = content_w + 2 * pad
+    lw = lblk.width if lblk else 0
+    rw = rblk.width if rblk else 0
+    mw = mid.width if mid else 0
+    natural = pad * 2 + lw + rw + mw
+    if lblk and (mid or rblk):
+        natural += l_gap
+    if rblk and mid:
+        natural += r_gap
+    width = natural
     fixed = float(spec.get("length_mm", 0) or 0)
     if fixed > 0:
         fixed_w = int(fixed * MM)
-        if fixed_w < width:
-            warnings.append(f"Inhalt ist länger als die feste Länge ({width / MM:.0f} mm > {fixed:g} mm) – wird abgeschnitten.")
+        if fixed_w < natural:
+            warnings.append(f"Inhalt ist länger als die feste Länge ({natural / MM:.0f} mm > {fixed:g} mm) – wird abgeschnitten.")
         width = fixed_w
     img = _blank(width, h)
-    align = spec.get("align", "center")
-    if align == "left" or fixed <= 0:
-        cx = pad
-    elif align == "right":
-        cx = width - pad - content_w
-    else:
-        cx = (width - content_w) // 2
-    img.paste(content, (cx, inner_pad_v))
+    d = ImageDraw.Draw(img)
+    y0 = inner_pad_v
+
+    # linker Block
+    x_left_end = pad
+    if lblk:
+        img.paste(lblk, (pad, y0))
+        x_left_end = pad + lw
+    # rechter Block
+    x_right_start = width - pad
+    if rblk:
+        x_right_start = width - pad - rw
+        if not (fixed > 0):
+            x_right_start = natural - pad - rw
+        img.paste(rblk, (x_right_start, y0))
+    # Mittelbereich
+    area_l = x_left_end + (l_gap if lblk else 0)
+    area_r = x_right_start - (r_gap if rblk else 0)
+    if mid:
+        align = spec.get("align", "center")
+        if fixed <= 0 or align == "left":
+            mx = area_l
+        elif align == "right":
+            mx = area_r - mw
+        else:
+            mx = area_l + max(0, (area_r - area_l - mw) // 2)
+        img.paste(mid, (mx, y0))
+    # Trennlinien (über die ganze Bandhöhe)
+    if l_div and lblk:
+        x = x_left_end + gap
+        d.rectangle([x, 0, x + div_w - 1, h - 1], fill=0)
+    if r_div and rblk:
+        x = x_right_start - gap - div_w
+        d.rectangle([x, 0, x + div_w - 1, h - 1], fill=0)
 
     if fpx:
-        d = ImageDraw.Draw(img)
         box = [0, 0, width - 1, h - 1]
         if frame == "round":
             d.rounded_rectangle(box, radius=max(4, h // 4), outline=0, width=fpx)
@@ -416,12 +505,12 @@ def render_label(spec: dict, tape_mm: float, value: str | None = None) -> tuple[
 
 
 def render_all(spec: dict, tape_mm: float) -> tuple[list[Image.Image], list[str], list[str | None]]:
-    values = series_values(spec)
+    rows = series_rows(spec)
     images, warnings = [], []
-    for v in values:
-        img, w = render_label(spec, tape_mm, v)
+    for r in rows:
+        img, w = render_label(spec, tape_mm, r["value"], r["items"])
         images.append(img)
         for msg in w:
             if msg not in warnings:
                 warnings.append(msg)
-    return images, warnings, values
+    return images, warnings, [r["value"] for r in rows]

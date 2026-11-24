@@ -107,3 +107,27 @@ def test_broken_default_font_uses_builtin(monkeypatch):
     monkeypatch.setattr(layout, "_font", flaky)
     img, w = layout.render_label({"items": [{"type": "text", "text": "Hallo"}]}, 12)
     assert img.width > 20 and any("Ersatzschrift" in m for m in w)
+
+
+def test_number_left_with_divider_fixed_length():
+    spec = {"length_mm": 90, "align": "center", "gap_mm": 2,
+            "items": [{"type": "number", "position": "left", "divider": True, "divider_px": 2, "bold": True},
+                      {"type": "text", "text": "AB"}],
+            "series": {"mode": "numbers", "rows": [{"value": "04"}, {"value": "05", "items": [
+                {"type": "number", "position": "right"}, {"type": "text", "text": "C"}]}]}}
+    imgs, warnings, values = layout.render_all(spec, 24)
+    assert values == ["04", "05"] and not warnings
+    img = imgs[0]
+    assert abs(img.width - int(90 * layout.MM)) <= 1
+    # Trennlinie: eine Spalte, die über die ganze Höhe schwarz ist
+    cols = [x for x in range(img.width) if all(img.getpixel((x, y)) == 0 for y in range(img.height))]
+    assert cols and cols[0] < img.width // 2
+    # Nummer rechts beim zweiten Etikett: Tinte am rechten Rand, keine Trennlinie
+    img2 = imgs[1]
+    right_ink = any(img2.getpixel((x, y)) == 0 for x in range(img2.width - 60, img2.width) for y in range(img2.height))
+    assert right_ink
+
+
+def test_legacy_series_still_works():
+    spec = {"items": [{"type": "text", "text": "{n}"}], "series": {"mode": "list", "list": "a\nb"}}
+    assert layout.render_all(spec, 12)[2] == ["a", "b"]

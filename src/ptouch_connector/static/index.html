@@ -6,222 +6,333 @@
 <title>Etiketten-Studio</title>
 <style>
 :root {
-  --bg: #f4f3f0; --panel: #ffffff; --ink: #1d1d1f; --muted: #6e6e73; --line: #e2e0db;
-  --accent: #1f6feb; --accent-ink: #ffffff; --warn-bg: #fff4d6; --warn-ink: #7a5300;
-  --err-bg: #fde7e7; --err-ink: #9b1c1c; --ok-bg: #e5f6ea; --ok-ink: #17602e;
-  --stage: #e9e7e2; --chip: #f1efeb; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+  --bg: #f5f6fb; --bg2: #eef0f8; --panel: #ffffff; --ink: #121527; --muted: #6b7088; --line: #e4e6f0;
+  --accent: #5b4cf5; --accent2: #12b5c9; --accent-soft: #eeecff; --accent-ink: #ffffff;
+  --grad: linear-gradient(120deg, #5b4cf5 0%, #7a5cff 45%, #12b5c9 100%);
+  --warn-bg: #fff6dc; --warn-ink: #7a5300; --err-bg: #ffe9ea; --err-ink: #a1162a; --ok-bg: #e3f8ec; --ok-ink: #106234;
+  --shadow: 0 1px 2px rgba(20,22,50,.05), 0 8px 28px rgba(20,22,50,.07);
+  --radius: 16px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161618; --panel: #1f1f22; --ink: #ececef; --muted: #9a9aa2; --line: #313136;
-    --accent: #4a8dff; --accent-ink: #0b0b0c; --warn-bg: #3a2f12; --warn-ink: #f3d27a;
-    --err-bg: #3d1717; --err-ink: #ffb4b4; --ok-bg: #12321d; --ok-ink: #9fe0b2;
-    --stage: #111113; --chip: #2a2a2e; --shadow: none;
+    --bg: #0f1020; --bg2: #15172b; --panel: #1a1c32; --ink: #eceefb; --muted: #9aa0bd; --line: #2a2d48;
+    --accent: #8b7dff; --accent2: #3fd3e3; --accent-soft: #2a2752; --accent-ink: #0d0d18;
+    --warn-bg: #3b3012; --warn-ink: #f6d47c; --err-bg: #431620; --err-ink: #ffb3bd; --ok-bg: #123321; --ok-ink: #9be6b6;
+    --shadow: none;
   }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; }
 button, input, select, textarea { font: inherit; color: inherit; }
-header { display: flex; align-items: center; gap: 12px; padding: 10px 18px; background: var(--panel);
-  border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
-header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
-.pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 999px;
-  background: var(--chip); font-size: 13px; }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: #aaa; flex: none; }
-.dot.ok { background: #2ea043; } .dot.err { background: #d1242f; } .dot.wait { background: #d4a72c; }
-.swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); display: inline-grid;
-  place-items: center; font-size: 10px; font-weight: 700; }
-.spacer { flex: 1; }
-main { display: grid; grid-template-columns: minmax(330px, 420px) minmax(0, 1fr); gap: 16px; padding: 16px; align-items: start; }
-@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } .right { position: static !important; } }
-.left { display: flex; flex-direction: column; gap: 12px; }
-.right { min-width: 0; position: sticky; top: 66px; display: flex; flex-direction: column; gap: 12px; }
-details, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
-details > summary { cursor: pointer; padding: 12px 14px; font-weight: 600; list-style: none; display: flex; align-items: center; gap: 8px; }
-details > summary::-webkit-details-marker { display: none; }
-details > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
-details[open] > summary::before { transform: rotate(90deg); }
-.body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
-.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.row > label, .field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 110px; }
-.lbl { font-size: 12px; color: var(--muted); }
+code { background: var(--accent-soft); color: var(--accent); padding: 0 5px; border-radius: 5px; font-size: 12px; }
+
+/* Kopfzeile */
+header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 20px; background: color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -.02em; }
+.logo { width: 30px; height: 30px; border-radius: 9px; background: var(--grad); display: grid; place-items: center; color: #fff; font-size: 16px; box-shadow: 0 4px 14px rgba(91,76,245,.35); }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--bg2); font-size: 13px; border: 1px solid var(--line); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #c7c9d6; flex: none; }
+.dot.ok { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+.dot.err { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.18); }
+.dot.wait { background: #f59e0b; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.sw { width: 16px; height: 16px; border-radius: 5px; border: 1px solid rgba(0,0,0,.18); display: inline-grid; place-items: center; font-size: 10px; font-weight: 800; flex: none; }
+.grow { flex: 1; }
+
+/* Grundlayout */
+main { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); gap: 20px; padding: 20px; align-items: start; max-width: 1700px; margin: 0 auto; }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px; } .side { position: static !important; max-height: none !important; } }
+.side { position: sticky; top: 74px; max-height: calc(100vh - 94px); display: flex; flex-direction: column; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.tabs { display: flex; gap: 4px; padding: 8px; background: var(--bg2); border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { flex: 1; border: 0; background: transparent; padding: 8px 10px; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.tabs button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(20,22,50,.12); }
+.tabs .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-size: 11px; }
+.pane { display: none; padding: 16px; overflow-y: auto; flex-direction: column; gap: 14px; }
+.pane.on { display: flex; }
+.stage-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Formular */
+h3 { margin: 4px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+.row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 110px; }
+.lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+.lbl b { color: var(--ink); }
 input[type=text], input[type=number], select, textarea {
-  width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-textarea { resize: vertical; min-height: 54px; }
+  width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); outline: none; transition: border-color .15s, box-shadow .15s; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+textarea { resize: vertical; min-height: 44px; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
-input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
-.check { flex-direction: row !important; align-items: center; gap: 6px !important; min-width: 0 !important; flex: none !important; cursor: pointer; }
-.btn { border: 1px solid var(--line); background: var(--panel); padding: 7px 11px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
-.btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-.btn.big { padding: 12px 22px; font-size: 16px; }
-.btn.small { padding: 3px 8px; font-size: 12px; }
-.btn:disabled { opacity: .5; cursor: default; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { border: 0; background: transparent; padding: 6px 10px; cursor: pointer; }
-.seg button.on { background: var(--accent); color: var(--accent-ink); }
-.addbar { display: flex; flex-wrap: wrap; gap: 6px; }
-.item { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-.item.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
-.item-head { display: flex; align-items: center; gap: 6px; }
-.item-head b { flex: 1; font-size: 13px; }
-.thumb { max-height: 54px; max-width: 160px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.check { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; font-size: 13px; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+.toggle input { appearance: none; width: 40px; height: 24px; border-radius: 99px; background: var(--line); position: relative; cursor: pointer; transition: background .2s; margin: 0; }
+.toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+.toggle input:checked { background: var(--accent); }
+.toggle input:checked::after { transform: translateX(16px); }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 8px 12px; border-radius: 10px; cursor: pointer; white-space: nowrap; font-weight: 500; transition: border-color .15s, background .15s, transform .05s; }
+.btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.btn:active { transform: translateY(1px); }
+.btn.small { padding: 4px 9px; font-size: 12px; border-radius: 8px; }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover { background: var(--bg2); }
+.btn.soft { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: default; }
+.cta { border: 0; background: var(--grad); color: #fff; font-weight: 700; font-size: 16px; padding: 13px 26px; border-radius: 14px; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(91,76,245,.35); transition: transform .1s, box-shadow .2s; display: inline-flex; align-items: center; gap: 10px; }
+.cta:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(91,76,245,.42); }
+.cta:disabled { opacity: .6; cursor: progress; transform: none; }
+.seg { display: inline-flex; padding: 3px; background: var(--bg2); border-radius: 10px; border: 1px solid var(--line); }
+.seg button { border: 0; background: transparent; padding: 5px 11px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 600; }
+.seg button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(20,22,50,.12); }
 .hint { font-size: 12px; color: var(--muted); }
-.symgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
-.symgrid button { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; padding: 6px; }
+kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 11px; }
+
+/* Schnellstart & Hinzufügen */
+.quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.quick button { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 10px 8px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, transform .1s; }
+.quick button:hover { border-color: var(--accent); transform: translateY(-1px); }
+.quick .mini { height: 26px; border-radius: 4px; background: #fff; border: 1px solid #ddd; display: flex; align-items: center; gap: 4px; padding: 0 5px; color: #111; font-weight: 800; font-size: 12px; overflow: hidden; }
+.quick .mini i { display: inline-block; width: 1px; align-self: stretch; background: #111; }
+.quick .mini s { display: inline-block; width: 16px; height: 16px; background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 0/6px 6px; text-decoration: none; }
+.quick small { font-size: 12px; font-weight: 600; }
+.adds { display: flex; flex-wrap: wrap; gap: 6px; }
+.adds .btn { font-size: 13px; padding: 6px 10px; }
+.context { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+.context.custom { background: color-mix(in srgb, var(--accent2) 16%, var(--panel)); color: color-mix(in srgb, var(--accent2) 70%, var(--ink)); }
+
+/* Elemente */
+.items { display: flex; flex-direction: column; gap: 10px; }
+.item { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); transition: border-color .15s, box-shadow .15s; }
+.item.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.item-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; cursor: pointer; }
+.item-head .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--bg2); font-size: 13px; flex: none; }
+.item-head b { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-head b span { color: var(--muted); font-weight: 400; }
+.item-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+.item:not(.open) .item-body { display: none; }
+.thumb { max-height: 54px; max-width: 160px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.symgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 5px; }
+.symgrid button { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 9px; background: #fff; cursor: pointer; padding: 6px; }
 .symgrid button.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .symgrid svg { width: 100%; height: 100%; display: block; }
-.stage { background: var(--stage); border-radius: 12px; padding: 28px 16px; overflow: auto; min-height: 180px;
-  display: grid; place-items: center; border: 1px solid var(--line); }
-.tape { position: relative; display: flex; align-items: center; border-radius: 3px;
-  box-shadow: 0 1px 0 rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.12); }
-.tape .feed { align-self: stretch; background: repeating-linear-gradient(135deg, rgba(0,0,0,.06) 0 4px, transparent 4px 8px); }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatches button { width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(0,0,0,.15); cursor: pointer; padding: 0; position: relative; font-size: 11px; font-weight: 700; }
+.swatches button.on { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+.swatches button.auto { width: auto; padding: 0 9px; background: var(--bg2); color: var(--ink); }
+.clear-pattern { background-color: #e9eef2 !important; background-image: linear-gradient(45deg, rgba(0,0,0,.07) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.07) 75%), linear-gradient(45deg, rgba(0,0,0,.07) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.07) 75%); background-size: 10px 10px; background-position: 0 0, 5px 5px; }
+.lenchips { display: flex; gap: 5px; flex-wrap: wrap; }
+
+/* Vorschau */
+.hero { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.hero-top { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.hero-top h2 { margin: 0; font-size: 15px; }
+.stage { position: relative; padding: 46px 20px; min-height: 230px; display: grid; place-items: center; overflow: auto;
+  background: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--muted) 26%, transparent) 1px, transparent 0) 0 0/18px 18px, var(--bg2); }
+.stage.busy .tape { opacity: .6; }
+.tape { position: relative; display: flex; align-items: center; border-radius: 3px; transition: opacity .2s;
+  box-shadow: 0 1px 0 rgba(0,0,0,.06), 0 14px 34px rgba(20,22,50,.18); }
+.tape .feed { align-self: stretch; background: repeating-linear-gradient(135deg, rgba(0,0,0,.07) 0 4px, transparent 4px 8px); }
 .tape canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
-.info { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 13px; }
-.info b { color: var(--ink); font-weight: 600; }
-.msg { padding: 8px 11px; border-radius: 8px; font-size: 13px; }
+.ruler { position: absolute; left: 0; right: 0; bottom: -24px; text-align: center; font-size: 12px; color: var(--muted); }
+.ruler::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 1px; background: var(--muted); opacity: .5; }
+.hero-foot { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat { background: var(--bg2); border-radius: 10px; padding: 6px 11px; font-size: 12px; color: var(--muted); }
+.stat b { display: block; font-size: 15px; color: var(--ink); }
+.msgs { display: flex; flex-direction: column; gap: 6px; }
+.msg { padding: 9px 12px; border-radius: 10px; font-size: 13px; }
 .msg.warn { background: var(--warn-bg); color: var(--warn-ink); }
 .msg.err { background: var(--err-bg); color: var(--err-ink); }
 .msg.ok { background: var(--ok-bg); color: var(--ok-ink); }
-.printbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; }
-.thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
-.thumbs button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: #555; }
-.thumbs button.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.thumbs img { height: 26px; image-rendering: pixelated; }
-.tpl { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
-.tpl span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 3px dashed var(--accent);
-  display: none; place-items: center; font-size: 22px; font-weight: 600; z-index: 50; pointer-events: none; }
+
+/* Serienliste */
+.series { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.series-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.series-head h2 { margin: 0; font-size: 15px; }
+.sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; padding: 14px; }
+.scard { border: 1px solid var(--line); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 7px; cursor: pointer; background: var(--panel); transition: border-color .15s, box-shadow .15s; }
+.scard:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.scard.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.scard.editing { border-color: var(--accent2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 22%, transparent); }
+.scard .pic { height: 40px; border-radius: 6px; background: #fff; display: grid; place-items: center; overflow: hidden; border: 1px solid #eee; }
+.scard .pic img { max-height: 34px; max-width: 100%; image-rendering: pixelated; }
+.scard .line { display: flex; align-items: center; gap: 5px; }
+.scard .num { font-weight: 700; color: var(--muted); font-size: 12px; width: 22px; text-align: right; }
+.scard input { padding: 5px 8px; }
+.tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent2) 20%, transparent); color: color-mix(in srgb, var(--accent2) 70%, var(--ink)); }
+.addcard { border: 2px dashed var(--line); border-radius: 12px; display: grid; place-items: center; min-height: 92px; color: var(--muted); cursor: pointer; font-weight: 600; background: transparent; }
+.addcard:hover { border-color: var(--accent); color: var(--accent); }
+
+.tpl { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.tpl span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 16%, transparent); border: 3px dashed var(--accent); display: none; place-items: center; font-size: 22px; font-weight: 700; z-index: 50; pointer-events: none; color: var(--accent); }
 .drop.on { display: grid; }
-.busy { opacity: .55; transition: opacity .2s; }
-kbd { background: var(--chip); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>🏷️ Etiketten-Studio</h1>
-  <span class="pill" id="status"><span class="dot wait"></span><span>Verbinde mit Drucker …</span></span>
-  <button class="btn small" id="refresh" title="Druckerstatus neu abfragen">↻ Status</button>
-  <span class="spacer"></span>
-  <button class="btn small" id="quit" title="Studio beenden">Beenden</button>
+  <div class="brand"><div class="logo">🏷</div>Etiketten-Studio</div>
+  <span class="chip" id="status"><span class="dot wait"></span><span>Verbinde mit Drucker …</span></span>
+  <button class="btn ghost small" id="refresh" title="Druckerstatus neu abfragen">↻ Status</button>
+  <span class="grow"></span>
+  <button class="btn ghost small" id="quit">Beenden</button>
 </header>
 
 <main>
-<section class="left">
+<aside class="side">
+  <nav class="tabs" id="tabs">
+    <button data-tab="inhalt" class="on">Inhalt</button>
+    <button data-tab="serie">Serie<span class="badge" id="serie-badge" hidden></span></button>
+    <button data-tab="layout">Layout</button>
+    <button data-tab="druck">Druck</button>
+    <button data-tab="vorlagen">Vorlagen</button>
+  </nav>
 
-  <details open id="sec-items">
-    <summary>Inhalt</summary>
-    <div class="body">
-      <div class="addbar">
-        <button class="btn" data-add="text">＋ Text</button>
-        <button class="btn" data-add="image">＋ Bild</button>
-        <button class="btn" data-add="symbol">＋ Symbol</button>
-        <button class="btn" data-add="qr">＋ QR-Code</button>
-        <button class="btn" data-add="barcode">＋ Barcode</button>
-        <button class="btn" data-add="spacer">＋ Abstand</button>
-      </div>
-      <div class="hint">Bilder einfügen: kopieren und hier <kbd>⌘</kbd><kbd>V</kbd> drücken, oder ins Fenster ziehen.
-        Platzhalter: <code>{n}</code> = Seriennummer/Listeneintrag, <code>{datum}</code> = heute.</div>
-      <div id="items" style="display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-  </details>
-
-  <details open>
-    <summary>Band &amp; Druck</summary>
-    <div class="body">
-      <div class="row">
-        <label><span class="lbl">Bandbreite</span><select data-k="tape" id="tape"></select></label>
-        <label><span class="lbl">Rand vor/nach (mm)</span><input type="number" data-k="margin_mm" min="2" max="50" step="0.5"></label>
-      </div>
-      <div class="row">
-        <label><span class="lbl">Schneiden</span>
-          <select data-k="cut"><option value="full">abschneiden</option><option value="half">Halbschnitt (Träger bleibt)</option><option value="none">nicht schneiden</option></select></label>
-        <label><span class="lbl">Kopien</span><input type="number" data-k="copies" min="1" max="99" step="1"></label>
-      </div>
-      <label class="check"><input type="checkbox" data-k="chain"> Mehrere Etiketten als ein Auftrag (spart Band)</label>
-      <div class="row">
-        <label class="check"><input type="checkbox" data-k="flip"> Druck um 180° drehen</label>
-        <button class="btn small" id="flipdefault">als Standard merken</button>
+  <!-- INHALT -->
+  <section class="pane on" data-pane="inhalt">
+    <div id="context"></div>
+    <div id="quickwrap">
+      <h3>Schnellstart</h3>
+      <div class="quick" style="margin-top:8px">
+        <button data-quick="schild"><span class="mini">04<i></i></span><small>Nummernschild</small></button>
+        <button data-quick="qrnum"><span class="mini"><s></s>00878</span><small>QR-Nummer</small></button>
+        <button data-quick="text"><span class="mini">Text</span><small>Nur Text</small></button>
       </div>
     </div>
-  </details>
-
-  <details open>
-    <summary>Gestaltung</summary>
-    <div class="body">
-      <div class="row">
-        <label><span class="lbl">Abstand zwischen Elementen (mm)</span><input type="number" data-k="gap_mm" min="0" max="50" step="0.5"></label>
-        <label><span class="lbl">Innenrand links/rechts (mm)</span><input type="number" data-k="padding_mm" min="0" max="50" step="0.5"></label>
-      </div>
-      <div class="row">
-        <label><span class="lbl">Etikettlänge (mm, 0 = automatisch)</span><input type="number" data-k="length_mm" min="0" max="1000" step="1"></label>
-        <label><span class="lbl">Ausrichtung bei fester Länge</span>
-          <select data-k="align"><option value="left">links</option><option value="center">mittig</option><option value="right">rechts</option></select></label>
-      </div>
-      <div class="row">
-        <label><span class="lbl">Rahmen</span>
-          <select data-k="frame"><option value="none">kein Rahmen</option><option value="rect">eckig</option><option value="round">abgerundet</option></select></label>
-        <label><span class="lbl">Rahmenstärke (Punkte)</span><input type="number" data-k="frame_px" min="1" max="12" step="1"></label>
-      </div>
-      <label class="check"><input type="checkbox" data-k="invert"> Invertiert (weiß auf schwarz)</label>
+    <h3>Elemente</h3>
+    <div class="adds">
+      <button class="btn soft" data-add="number">＋ Nummer</button>
+      <button class="btn" data-add="text">＋ Text</button>
+      <button class="btn" data-add="qr">＋ QR</button>
+      <button class="btn" data-add="barcode">＋ Barcode</button>
+      <button class="btn" data-add="image">＋ Bild</button>
+      <button class="btn" data-add="symbol">＋ Symbol</button>
+      <button class="btn" data-add="spacer">＋ Abstand</button>
     </div>
-  </details>
+    <div class="hint">Bild einfügen: kopieren, dann <kbd>⌘</kbd> <kbd>V</kbd> – oder ins Fenster ziehen.
+      <code>{n}</code> = Seriennummer · <code>{datum}</code> = heute</div>
+    <div class="items" id="items"></div>
+  </section>
 
-  <details>
-    <summary>Serie &amp; Liste</summary>
-    <div class="body">
-      <div class="seg" id="seriesmode">
-        <button data-v="none">Aus</button><button data-v="numbers">Nummern</button><button data-v="list">Liste</button>
+  <!-- SERIE -->
+  <section class="pane" data-pane="serie">
+    <label class="toggle"><input type="checkbox" id="series-on"> Serie drucken</label>
+    <div class="hint">Jedes Etikett der Serie bekommt einen eigenen Wert für <code>{n}</code> – z. B. im Nummern- oder QR-Element.
+      Die Liste erscheint rechts unter der Vorschau: dort kannst du jeden Wert ändern und jedes Etikett einzeln gestalten.</div>
+    <div id="series-settings">
+      <h3>Nummern erzeugen</h3>
+      <div class="row" style="margin-top:8px">
+        <label class="field"><span class="lbl">Von</span><input type="number" data-s="start" step="1"></label>
+        <label class="field"><span class="lbl">Bis</span><input type="number" data-s="end" step="1"></label>
       </div>
-      <div id="series-numbers" class="row">
-        <label><span class="lbl">Von</span><input type="number" data-s="start" step="1"></label>
-        <label><span class="lbl">Bis</span><input type="number" data-s="end" step="1"></label>
-        <label><span class="lbl">Schritt</span><input type="number" data-s="step" step="1"></label>
-        <label><span class="lbl">Stellen (001)</span><input type="number" data-s="digits" min="0" max="8" step="1"></label>
+      <div class="row" style="margin-top:8px">
+        <label class="field"><span class="lbl">Schritt</span><input type="number" data-s="step" step="1"></label>
+        <label class="field"><span class="lbl">Stellen (z. B. 5 → 00001)</span><input type="number" data-s="digits" min="0" max="10" step="1"></label>
       </div>
-      <div id="series-list">
-        <label class="field"><span class="lbl">Ein Eintrag pro Zeile (z. B. aus Excel/Sheets einfügen)</span>
-          <textarea data-s="list" rows="6" placeholder="Router&#10;Switch&#10;NAS"></textarea></label>
-      </div>
-      <div class="hint">Setze <code>{n}</code> in einen Text, QR-Code oder Barcode – pro Wert entsteht ein Etikett.</div>
+      <div class="row" style="margin-top:10px"><button class="btn soft" id="gen">Liste neu erzeugen</button></div>
+      <h3 style="margin-top:16px">…oder Liste einfügen</h3>
+      <label class="field" style="margin-top:8px"><span class="lbl">Ein Eintrag pro Zeile (z. B. aus Excel / Sheets)</span>
+        <textarea id="paste-list" rows="5" placeholder="00878&#10;00879&#10;00880"></textarea></label>
+      <div class="row" style="margin-top:8px"><button class="btn" id="use-list">Als Serie übernehmen</button></div>
     </div>
-  </details>
+  </section>
 
-  <details>
-    <summary>Vorlagen</summary>
-    <div class="body">
-      <div class="row">
-        <input type="text" id="tplname" placeholder="Name der Vorlage">
-        <button class="btn" id="tplsave">Speichern</button>
-      </div>
-      <div id="tpllist"></div>
-      <button class="btn small" id="reset" style="align-self:flex-start">Neues leeres Etikett</button>
+  <!-- LAYOUT -->
+  <section class="pane" data-pane="layout">
+    <h3>Etikettlänge</h3>
+    <div class="lenchips" id="lenchips">
+      <button class="btn small" data-len="0">Automatisch</button>
+      <button class="btn small" data-len="30">30 mm</button><button class="btn small" data-len="50">50 mm</button>
+      <button class="btn small" data-len="75">75 mm</button><button class="btn small" data-len="100">100 mm</button>
     </div>
-  </details>
+    <div class="row">
+      <label class="field"><span class="lbl">Länge in mm (0 = automatisch)</span><input type="number" data-k="length_mm" min="0" max="1000" step="1"></label>
+      <label class="field"><span class="lbl">Inhalt ausrichten</span>
+        <select data-k="align"><option value="left">links</option><option value="center">mittig</option><option value="right">rechts</option></select></label>
+    </div>
+    <h3>Abstände</h3>
+    <div class="row">
+      <label class="field"><span class="lbl">Zwischen Elementen (mm)</span><input type="number" data-k="gap_mm" min="0" max="50" step="0.5"></label>
+      <label class="field"><span class="lbl">Innenrand links/rechts (mm)</span><input type="number" data-k="padding_mm" min="0" max="50" step="0.5"></label>
+    </div>
+    <h3>Rahmen &amp; Effekte</h3>
+    <div class="row">
+      <label class="field"><span class="lbl">Rahmen</span>
+        <select data-k="frame"><option value="none">kein Rahmen</option><option value="rect">eckig</option><option value="round">abgerundet</option></select></label>
+      <label class="field"><span class="lbl">Stärke (Punkte)</span><input type="number" data-k="frame_px" min="1" max="12" step="1"></label>
+    </div>
+    <label class="check"><input type="checkbox" data-k="invert"> Invertiert (hell auf dunkel)</label>
+  </section>
 
-</section>
+  <!-- DRUCK -->
+  <section class="pane" data-pane="druck">
+    <h3>Band</h3>
+    <div class="row">
+      <label class="field"><span class="lbl">Bandbreite</span><select data-k="tape" id="tape"></select></label>
+      <label class="field"><span class="lbl">Rand vor/nach (mm)</span><input type="number" data-k="margin_mm" min="2" max="50" step="0.5"></label>
+    </div>
+    <div class="field"><span class="lbl">Bandfarbe (nur Vorschau)</span><div class="swatches" id="tape-colors"></div></div>
+    <div class="field"><span class="lbl">Schriftfarbe (nur Vorschau)</span><div class="swatches" id="ink-colors"></div></div>
+    <h3>Ausgabe</h3>
+    <div class="row">
+      <label class="field"><span class="lbl">Schneiden</span>
+        <select data-k="cut"><option value="full">abschneiden</option><option value="half">Halbschnitt (Träger bleibt)</option><option value="none">nicht schneiden</option></select></label>
+      <label class="field"><span class="lbl">Kopien je Etikett</span><input type="number" data-k="copies" min="1" max="99" step="1"></label>
+    </div>
+    <label class="check"><input type="checkbox" data-k="chain"> Serie als ein Auftrag (spart Band zwischen den Etiketten)</label>
+    <div class="row" style="align-items:center">
+      <label class="check"><input type="checkbox" data-k="flip"> Druck um 180° drehen</label>
+      <button class="btn small" id="flipdefault">als Standard merken</button>
+    </div>
+  </section>
 
-<section class="right">
-  <div class="card">
-    <div class="printbar">
-      <button class="btn primary big" id="print">Drucken</button>
-      <div class="info" id="info"></div>
-      <span class="spacer"></span>
-      <label class="row" style="gap:6px"><span class="lbl">Zoom</span>
-        <select id="zoom" style="width:auto"><option value="fit">Einpassen</option><option value="0.53">Originalgröße</option><option value="1">1 Punkt = 1 px</option><option value="2">2×</option><option value="4">4×</option></select></label>
+  <!-- VORLAGEN -->
+  <section class="pane" data-pane="vorlagen">
+    <div class="row">
+      <label class="field"><span class="lbl">Aktuelles Etikett speichern als</span><input type="text" id="tplname" placeholder="z. B. Inventar-QR"></label>
+      <button class="btn soft" id="tplsave">Speichern</button>
+    </div>
+    <div id="tpllist" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button class="btn" id="reset" style="align-self:flex-start">Neues leeres Etikett</button>
+  </section>
+</aside>
+
+<section class="stage-col">
+  <div class="hero">
+    <div class="hero-top">
+      <h2 id="preview-title">Vorschau</h2>
+      <span class="grow"></span>
+      <div class="seg" id="zoom">
+        <button data-z="fit" class="on">Einpassen</button><button data-z="0.53">Echtgröße</button><button data-z="2">2×</button><button data-z="4">4×</button>
+      </div>
+    </div>
+    <div class="stage" id="stage"><div class="hint">Vorschau wird erstellt …</div></div>
+    <div class="hero-foot">
+      <div class="stats" id="stats"></div>
+      <span class="grow"></span>
+      <button class="cta" id="print">🖨 Drucken</button>
     </div>
   </div>
-  <div class="stage" id="stage"><div class="hint">Vorschau wird erstellt …</div></div>
-  <div id="thumbs" class="thumbs"></div>
-  <div id="msgs" style="display:flex;flex-direction:column;gap:6px"></div>
+  <div class="msgs" id="msgs"></div>
+  <div class="series" id="series" hidden>
+    <div class="series-head">
+      <h2>Serie</h2><span class="hint" id="series-count"></span>
+      <span class="grow"></span>
+      <span class="hint">Wert ändern · ✎ = dieses Etikett einzeln gestalten</span>
+    </div>
+    <div class="sgrid" id="sgrid"></div>
+  </div>
 </section>
 </main>
 <div class="drop" id="drop">Bild hier loslassen</div>
 
 <script>
 "use strict";
-// ---------- Symbole (24×24, schwarz) ----------
+// ---------- Symbole ----------
 const S = (inner, fill) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fill ? "#000" : "none"}" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
 const SYMBOLS = {
   blitz: S('<polygon points="13 2 4 14 11 14 10 22 20 10 13 10 13 2"/>', true),
@@ -255,61 +366,73 @@ const SYMBOLS = {
   schnee: S('<path d="M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17"/>'),
   musik: S('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>'),
 };
+const TAPE_COLORS = [["#ffffff", "weiß"], ["clear", "transparent"], ["#f6d23c", "gelb"], ["#d6403a", "rot"], ["#2f6fd0", "blau"],
+  ["#3fa45b", "grün"], ["#1d1d1d", "schwarz"], ["#c9ccd0", "silber"], ["#d8b65c", "gold"], ["#ff8a2a", "neon-orange"],
+  ["#e9f53b", "neon-gelb"], ["#f48fb1", "pink"], ["#9fd34a", "limette"], ["#c8c8c8", "hellgrau"]];
+const INK_COLORS = [["#111111", "schwarz"], ["#ffffff", "weiß"], ["#d6403a", "rot"], ["#2f6fd0", "blau"], ["#c9a440", "gold"]];
 
 // ---------- Zustand ----------
-let CFG = null, state = null, selected = 0, preview = null, showIdx = 0;
+let CFG = null, state = null, selected = 0, openItem = 0, preview = null, showIdx = 0, editing = null;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 const NEW = {
+  number: () => ({ type: "number", text: "{n}", position: "left", divider: false, divider_px: 2, font: "", bold: true, italic: false, underline: false, size_mode: "auto", size_pct: 100, size_px: 40, align: "center", line_spacing: 10, valign: "center" }),
   text: () => ({ type: "text", text: "Text", font: "", size_mode: "auto", size_pct: 100, size_px: 40, bold: false, italic: false, underline: false, align: "center", line_spacing: 10, valign: "center" }),
   image: () => ({ type: "image", src: "", size_pct: 100, mode: "dither", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
   symbol: () => ({ type: "symbol", key: "blitz", emoji: "", src: "", size_pct: 85, mode: "threshold", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
-  qr: () => ({ type: "qr", data: "https://", ecc: "M", size_pct: 100, valign: "center" }),
-  barcode: () => ({ type: "barcode", kind: "code128", data: "12345", module_px: 2, show_text: true, size_pct: 100, valign: "center" }),
+  qr: () => ({ type: "qr", data: "{n}", ecc: "M", size_pct: 100, valign: "center" }),
+  barcode: () => ({ type: "barcode", kind: "code128", data: "{n}", module_px: 2, show_text: true, size_pct: 100, valign: "center" }),
   spacer: () => ({ type: "spacer", width_mm: 5 }),
 };
-const NAMES = { text: "Text", image: "Bild", symbol: "Symbol", qr: "QR-Code", barcode: "Barcode", spacer: "Abstand" };
+const NAMES = { number: "Nummer", text: "Text", image: "Bild", symbol: "Symbol", qr: "QR-Code", barcode: "Barcode", spacer: "Abstand" };
+const ICONS = { number: "#", text: "T", image: "🖼", symbol: "★", qr: "▦", barcode: "║", spacer: "↔" };
 
 async function api(path, body) {
   const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return r.json();
 }
+const items = () => editing === null ? state.items : state.series.rows[editing].items;
+
+// ---------- Tabs ----------
+function showTab(t) {
+  $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  $$(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === t));
+}
+$$("#tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
 // ---------- Symbole rastern ----------
-function rasterize(svgOrEmoji, isEmoji) {
+function rasterize(src, isEmoji) {
   return new Promise(resolve => {
     const c = document.createElement("canvas"); c.width = c.height = 512;
     const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, 512, 512);
     if (isEmoji) {
       g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#000";
       g.font = '400px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-      g.fillText(svgOrEmoji, 256, 280); resolve(c.toDataURL("image/png")); return;
+      g.fillText(src, 256, 280); resolve(c.toDataURL("image/png")); return;
     }
     const img = new Image();
     img.onload = () => { g.drawImage(img, 16, 16, 480, 480); resolve(c.toDataURL("image/png")); };
     img.onerror = () => resolve("");
-    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgOrEmoji.replace("<svg ", '<svg width="480" height="480" '));
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(src.replace("<svg ", '<svg width="480" height="480" '));
   });
 }
-async function updateSymbol(it) {
-  it.src = it.emoji ? await rasterize(it.emoji, true) : await rasterize(SYMBOLS[it.key] || SYMBOLS.blitz, false);
-}
+async function updateSymbol(it) { it.src = it.emoji ? await rasterize(it.emoji, true) : await rasterize(SYMBOLS[it.key] || SYMBOLS.blitz, false); }
 
-// ---------- Bilder laden (verkleinert) ----------
+// ---------- Bilder ----------
 function fileToDataURL(file) {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
-        const c = document.createElement("canvas");
-        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
         const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
         g.drawImage(img, 0, 0, c.width, c.height); resolve(c.toDataURL("image/png"));
       };
@@ -321,73 +444,96 @@ function fileToDataURL(file) {
 async function addImageFile(file) {
   if (!file || !file.type.startsWith("image/")) return;
   const it = NEW.image(); it.src = await fileToDataURL(file);
-  state.items.push(it); selected = state.items.length - 1; renderItems(); changed();
+  items().push(it); selected = openItem = items().length - 1; showTab("inhalt"); renderItems(); changed();
 }
 
-// ---------- Elementliste ----------
+// ---------- Elemente ----------
 const f = {
   range: (k, lbl, min, max, step, unit = "") => `<label class="field"><span class="lbl">${lbl}: <b data-show="${k}"></b>${unit}</span><input type="range" data-i="${k}" min="${min}" max="${max}" step="${step}"></label>`,
   num: (k, lbl, min, max, step) => `<label class="field"><span class="lbl">${lbl}</span><input type="number" data-i="${k}" min="${min}" max="${max}" step="${step}"></label>`,
   check: (k, lbl) => `<label class="check"><input type="checkbox" data-i="${k}"> ${lbl}</label>`,
   sel: (k, lbl, opts) => `<label class="field"><span class="lbl">${lbl}</span><select data-i="${k}">${opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></label>`,
-  text: (k, lbl, ph = "") => `<label class="field"><span class="lbl">${lbl}</span><textarea data-i="${k}" rows="2" placeholder="${ph}"></textarea></label>`,
+  text: (k, lbl, ph = "", rows = 2) => `<label class="field"><span class="lbl">${lbl}</span><textarea data-i="${k}" rows="${rows}" placeholder="${ph}"></textarea></label>`,
+  input: (k, lbl, ph = "") => `<label class="field"><span class="lbl">${lbl}</span><input type="text" data-i="${k}" placeholder="${ph}"></label>`,
 };
 const VALIGN = f.sel("valign", "Vertikal", [["center", "mittig"], ["top", "oben"], ["bottom", "unten"]]);
 const IMGOPTS = `<div class="row">${f.range("size_pct", "Größe", 10, 100, 1, " %")}${f.sel("rotate", "Drehen", [[0, "0°"], [90, "90°"], [180, "180°"], [270, "270°"]])}</div>
-  <div class="row">${f.sel("mode", "Rasterung", [["dither", "Graustufen gerastert (Fotos)"], ["threshold", "Schwarz/Weiß-Schwelle (Logos)"]])}${VALIGN}</div>
+  <div class="row">${f.sel("mode", "Umwandlung", [["dither", "Graustufen rastern (Fotos)"], ["threshold", "Schwelle (Logos, Grafiken)"]])}${VALIGN}</div>
   <div class="row">${f.range("threshold", "Schwelle", 1, 254, 1)}${f.range("contrast", "Kontrast", -80, 200, 5)}</div>
   <div class="row">${f.check("invert", "invertieren")}${f.check("autocrop", "weißen Rand entfernen")}</div>`;
+const fontOpts = () => [["", "Standard (Helvetica)"], ...CFG.fonts.map(x => [x, x])];
+const TEXTSTYLE = () => `<div class="row">${f.sel("font", "Schrift", fontOpts())}</div>
+  <div class="row">${f.sel("size_mode", "Größe", [["auto", "an Bandhöhe anpassen"], ["fixed", "feste Größe (Punkte)"]])}
+    <span data-when="size_mode=auto" style="flex:1;min-width:110px;display:flex">${f.range("size_pct", "Höhe", 20, 100, 1, " %")}</span>
+    <span data-when="size_mode=fixed" style="flex:1;min-width:110px;display:flex">${f.num("size_px", "Punkte (180 dpi)", 6, 200, 1)}</span></div>
+  <div class="row">${f.check("bold", "<b>fett</b>")}${f.check("italic", "<i>kursiv</i>")}${f.check("underline", "<u>unterstrichen</u>")}</div>`;
 
+function summary(it) {
+  const t = { number: it.text, text: it.text, qr: it.data, barcode: it.data, symbol: it.emoji || it.key, spacer: `${it.width_mm} mm`, image: it.src ? "" : "leer" }[it.type];
+  const pos = it.type === "number" ? ` · ${it.position === "right" ? "rechts" : it.position === "flow" ? "im Fluss" : "links"}` : "";
+  return t ? ` <span>${esc(String(t).split("\n")[0].slice(0, 26))}${pos}</span>` : "";
+}
 function itemHTML(it, i) {
-  const n = state.items.length;
+  const n = items().length;
   let body = "";
-  if (it.type === "text") {
-    const fonts = [["", "Standard (Helvetica)"], ...CFG.fonts.map(x => [x, x])];
-    body = `${f.text("text", "Text (Enter = neue Zeile)")}
-      <div class="row">${f.sel("font", "Schrift", fonts)}</div>
-      <div class="row">${f.sel("size_mode", "Größe", [["auto", "automatisch an Band anpassen"], ["fixed", "feste Größe (Punkte)"]])}
-        <span data-when="size_mode=auto" style="flex:1;min-width:110px">${f.range("size_pct", "Höhe", 20, 100, 1, " %")}</span>
-        <span data-when="size_mode=fixed" style="flex:1;min-width:110px">${f.num("size_px", "Punkte (180 dpi)", 6, 200, 1)}</span></div>
-      <div class="row">${f.check("bold", "<b>fett</b>")}${f.check("italic", "<i>kursiv</i>")}${f.check("underline", "<u>unterstrichen</u>")}</div>
+  if (it.type === "number") {
+    body = `${f.input("text", "Inhalt – {n} wird durch die Seriennummer ersetzt", "{n}")}
+      <div class="row">${f.sel("position", "Position", [["left", "links am Rand"], ["right", "rechts am Rand"], ["flow", "zwischen den Elementen"]])}</div>
+      <div class="row" style="align-items:center">${f.check("divider", "Trennlinie zum Rest")}<span data-when="divider=true" style="flex:1;display:flex">${f.range("divider_px", "Linienstärke", 1, 8, 1, " Pkt")}</span></div>
+      ${TEXTSTYLE()}`;
+  } else if (it.type === "text") {
+    body = `${f.text("text", "Text (Enter = neue Zeile)")}${TEXTSTYLE()}
       <div class="row">${f.sel("align", "Zeilen ausrichten", [["left", "links"], ["center", "mittig"], ["right", "rechts"]])}${f.range("line_spacing", "Zeilenabstand", 0, 60, 1, " %")}</div>`;
   } else if (it.type === "image") {
-    body = `<div class="row">${it.src ? `<img class="thumb" src="${it.src}">` : `<span class="hint">Noch kein Bild – ⌘V oder Datei wählen</span>`}
+    body = `<div class="row" style="align-items:center">${it.src ? `<img class="thumb" src="${it.src}">` : `<span class="hint">Noch kein Bild – ⌘V oder Datei wählen</span>`}
       <label class="btn small">Datei wählen…<input type="file" accept="image/*" data-file hidden></label></div>${IMGOPTS}`;
   } else if (it.type === "symbol") {
     body = `<div class="symgrid">${Object.entries(SYMBOLS).map(([k, svg]) => `<button title="${k}" data-sym="${k}" class="${!it.emoji && it.key === k ? "on" : ""}">${svg}</button>`).join("")}</div>
-      <div class="row"><label class="field"><span class="lbl">…oder Emoji/Zeichen eingeben (z. B. ⚡ ☕ ♻️ ❄️)</span><input type="text" data-i="emoji" maxlength="8"></label></div>${IMGOPTS}`;
+      ${f.input("emoji", "…oder Emoji / Zeichen (z. B. ⚡ ☕ ♻️)")}${IMGOPTS}`;
   } else if (it.type === "qr") {
-    body = `${f.text("data", "Inhalt (Link, Text, WLAN …)", "https://…")}
-      <div class="row"><button class="btn small" data-wifi>WLAN-Zugang erstellen…</button></div>
-      <div class="row">${f.sel("ecc", "Fehlerkorrektur", [["L", "niedrig (kleiner)"], ["M", "mittel"], ["Q", "hoch"], ["H", "sehr hoch (größer)"]])}${f.range("size_pct", "Größe", 30, 100, 1, " %")}</div>`;
+    body = `${f.text("data", "Inhalt – {n} = Seriennummer (nur die Zahl)", "{n}")}
+      <div class="row"><button class="btn small" data-qrn>Nur Nummer {n}</button><button class="btn small" data-wifi>WLAN-Zugang…</button></div>
+      <div class="row">${f.sel("ecc", "Fehlerkorrektur", [["L", "niedrig (kleiner)"], ["M", "mittel"], ["Q", "hoch"], ["H", "sehr hoch"]])}${f.range("size_pct", "Größe", 30, 100, 1, " %")}</div>`;
   } else if (it.type === "barcode") {
     body = `<div class="row">${f.sel("kind", "Typ", [["code128", "Code 128 (Text & Zahlen)"], ["code39", "Code 39"], ["ean13", "EAN-13 (12 Ziffern)"], ["ean8", "EAN-8 (7 Ziffern)"], ["upca", "UPC-A (11 Ziffern)"], ["isbn13", "ISBN-13"]])}</div>
-      ${f.text("data", "Inhalt")}
-      <div class="row">${f.num("module_px", "Strichbreite (Punkte)", 1, 6, 1)}${f.range("size_pct", "Höhe", 30, 100, 1, " %")}</div>
-      <div class="row">${f.check("show_text", "Klartext darunter")}</div>`;
+      ${f.text("data", "Inhalt", "{n}")}
+      <div class="row">${f.num("module_px", "Strichbreite (Pkt)", 1, 6, 1)}${f.range("size_pct", "Höhe", 30, 100, 1, " %")}</div>
+      ${f.check("show_text", "Klartext darunter")}`;
   } else if (it.type === "spacer") {
     body = `<div class="row">${f.num("width_mm", "Breite (mm)", 0, 200, 0.5)}</div>`;
   }
-  return `<div class="item ${i === selected ? "sel" : ""}" data-idx="${i}">
-    <div class="item-head"><b>${i + 1}. ${NAMES[it.type] || it.type}</b>
-      <button class="btn small" data-act="up" ${i === 0 ? "disabled" : ""} title="nach links">↑</button>
-      <button class="btn small" data-act="down" ${i === n - 1 ? "disabled" : ""} title="nach rechts">↓</button>
-      <button class="btn small" data-act="dup" title="duplizieren">⧉</button>
-      <button class="btn small" data-act="del" title="entfernen">✕</button></div>${body}</div>`;
+  return `<div class="item ${i === selected ? "sel" : ""} ${i === openItem ? "open" : ""}" data-idx="${i}">
+    <div class="item-head" data-toggle><span class="ic">${ICONS[it.type] || "?"}</span><b>${NAMES[it.type] || it.type}${summary(it)}</b>
+      <button class="btn ghost small" data-act="up" ${i === 0 ? "disabled" : ""} title="nach links">←</button>
+      <button class="btn ghost small" data-act="down" ${i === n - 1 ? "disabled" : ""} title="nach rechts">→</button>
+      <button class="btn ghost small" data-act="dup" title="duplizieren">⧉</button>
+      <button class="btn ghost small" data-act="del" title="entfernen">✕</button></div>
+    <div class="item-body">${body}</div></div>`;
 }
-
 function syncWhen(card, it) {
-  $$("[data-when]", card).forEach(el => {
-    const [k, v] = el.dataset.when.split("="); el.style.display = String(it[k]) === v ? "" : "none";
-  });
+  $$("[data-when]", card).forEach(el => { const [k, v] = el.dataset.when.split("="); el.style.display = String(it[k]) === v ? "" : "none"; });
   $$("[data-show]", card).forEach(el => { el.textContent = it[el.dataset.show]; });
 }
-
+function renderContext() {
+  const box = $("#context");
+  if (editing === null) {
+    box.innerHTML = state.series.mode !== "none" ? `<div class="context">✎ Vorlage für alle Etiketten der Serie</div>` : "";
+    $("#quickwrap").hidden = false;
+  } else {
+    const r = state.series.rows[editing];
+    box.innerHTML = `<div class="context custom">✎ Etikett ${editing + 1} („${esc(r.value)}“) – eigene Gestaltung
+      <span class="grow"></span><button class="btn small" id="ctx-back">Fertig</button><button class="btn small" id="ctx-reset">Zur Vorlage zurücksetzen</button></div>`;
+    $("#quickwrap").hidden = true;
+    $("#ctx-back").onclick = () => { editing = null; selected = openItem = 0; renderAll(); };
+    $("#ctx-reset").onclick = () => { r.items = null; editing = null; selected = openItem = 0; renderAll(); changed(); };
+  }
+}
 function renderItems() {
-  const box = $("#items");
-  box.innerHTML = state.items.map(itemHTML).join("") || `<div class="hint">Noch leer – oben ein Element hinzufügen.</div>`;
+  renderContext();
+  const list = items(), box = $("#items");
+  box.innerHTML = list.map(itemHTML).join("") || `<div class="hint">Noch leer – oben ein Element hinzufügen oder Schnellstart wählen.</div>`;
   $$(".item", box).forEach(card => {
-    const i = +card.dataset.idx, it = state.items[i];
+    const i = +card.dataset.idx, it = list[i];
     $$("[data-i]", card).forEach(el => {
       const k = el.dataset.i;
       if (el.type === "checkbox") el.checked = !!it[k]; else el.value = it[k] ?? "";
@@ -395,105 +541,219 @@ function renderItems() {
         let v = el.type === "checkbox" ? el.checked : el.value;
         if (el.type === "range" || el.type === "number" || k === "rotate") v = v === "" ? 0 : +v;
         it[k] = v; syncWhen(card, it);
+        $(".item-head b", card).innerHTML = `${NAMES[it.type]}${summary(it)}`;
         if (it.type === "symbol" && k === "emoji") await updateSymbol(it);
         changed();
       });
     });
     syncWhen(card, it);
-    card.addEventListener("focusin", () => selectItem(i));
-    card.addEventListener("click", () => selectItem(i));
+    $("[data-toggle]", card).addEventListener("click", e => {
+      if (e.target.closest("[data-act]")) return;
+      openItem = openItem === i ? -1 : i; selected = i;
+      $$(".item", box).forEach(c => { c.classList.toggle("open", +c.dataset.idx === openItem); c.classList.toggle("sel", +c.dataset.idx === i); });
+    });
     $$("[data-act]", card).forEach(b => b.addEventListener("click", e => {
       e.stopPropagation(); const a = b.dataset.act;
-      if (a === "del") state.items.splice(i, 1);
-      if (a === "dup") state.items.splice(i + 1, 0, clone(it));
-      if (a === "up" && i > 0) [state.items[i - 1], state.items[i]] = [state.items[i], state.items[i - 1]];
-      if (a === "down" && i < state.items.length - 1) [state.items[i + 1], state.items[i]] = [state.items[i], state.items[i + 1]];
-      selected = Math.max(0, Math.min(state.items.length - 1, a === "up" ? i - 1 : a === "down" ? i + 1 : i));
+      if (a === "del") list.splice(i, 1);
+      if (a === "dup") list.splice(i + 1, 0, clone(it));
+      if (a === "up" && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
+      if (a === "down" && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
+      selected = openItem = Math.max(0, Math.min(list.length - 1, a === "up" ? i - 1 : a === "down" || a === "dup" ? i + 1 : i));
       renderItems(); changed();
     }));
-    $$("[data-sym]", card).forEach(b => b.addEventListener("click", async () => {
-      it.key = b.dataset.sym; it.emoji = ""; await updateSymbol(it); renderItems(); changed();
-    }));
+    $$("[data-sym]", card).forEach(b => b.addEventListener("click", async () => { it.key = b.dataset.sym; it.emoji = ""; await updateSymbol(it); renderItems(); changed(); }));
     const file = $("[data-file]", card);
-    if (file) file.addEventListener("change", async () => {
-      if (file.files[0]) { it.src = await fileToDataURL(file.files[0]); renderItems(); changed(); }
-    });
+    if (file) file.addEventListener("change", async () => { if (file.files[0]) { it.src = await fileToDataURL(file.files[0]); renderItems(); changed(); } });
+    const qrn = $("[data-qrn]", card);
+    if (qrn) qrn.addEventListener("click", () => { it.data = "{n}"; ensureSeries(5); renderAll(); changed(); });
     const wifi = $("[data-wifi]", card);
     if (wifi) wifi.addEventListener("click", () => {
       const ssid = prompt("WLAN-Name (SSID):"); if (ssid === null) return;
       const pw = prompt("WLAN-Passwort (leer = offenes Netz):") ?? "";
-      const esc = s => s.replace(/([\\;,:"])/g, "\\$1");
-      it.data = `WIFI:T:${pw ? "WPA" : "nopass"};S:${esc(ssid)};${pw ? `P:${esc(pw)};` : ""};`;
+      const e2 = s => s.replace(/([\\;,:"])/g, "\\$1");
+      it.data = `WIFI:T:${pw ? "WPA" : "nopass"};S:${e2(ssid)};${pw ? `P:${e2(pw)};` : ""};`;
       renderItems(); changed();
     });
   });
 }
-function selectItem(i) {
-  if (selected === i) return; selected = i;
-  $$(".item").forEach(c => c.classList.toggle("sel", +c.dataset.idx === i));
+
+// ---------- Serie ----------
+function genValues(s) {
+  let start = +s.start || 0, end = +s.end || 0, step = Math.abs(+s.step || 1);
+  if (end < start) step = -step;
+  const out = [];
+  for (let v = start; step > 0 ? v <= end : v >= end; v += step) { out.push(String(v).padStart(+s.digits || 0, "0")); if (out.length >= 500) break; }
+  return out;
+}
+function setRows(values) {
+  const old = state.series.rows || [];
+  state.series.rows = values.map((v, i) => ({ value: v, items: old[i] ? old[i].items : null }));
+  editing = null; showIdx = 0;
+}
+function ensureSeries(digits) {
+  if (state.series.mode === "none" || !state.series.rows.length) {
+    state.series.mode = "on";
+    if (digits !== undefined) state.series.digits = digits;
+    setRows(genValues(state.series));
+  }
+}
+$("#series-on").addEventListener("change", e => {
+  state.series.mode = e.target.checked ? "on" : "none";
+  if (e.target.checked && !state.series.rows.length) setRows(genValues(state.series));
+  editing = null; renderAll(); changed();
+});
+$$("[data-s]").forEach(el => el.addEventListener("input", () => { state.series[el.dataset.s] = +el.value; }));
+$("#gen").addEventListener("click", () => {
+  const vals = genValues(state.series);
+  if (!vals.length) return alert("Mit diesen Werten entsteht keine Nummer.");
+  const custom = state.series.rows.some(r => r.items);
+  if (custom && !confirm("Einzeln gestaltete Etiketten behalten ihre Gestaltung an gleicher Position. Fortfahren?")) return;
+  state.series.mode = "on"; setRows(vals); renderAll(); changed();
+});
+$("#use-list").addEventListener("click", () => {
+  const vals = $("#paste-list").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 500);
+  if (!vals.length) return $("#paste-list").focus();
+  state.series.mode = "on"; setRows(vals); renderAll(); changed();
+});
+function renderSeries() {
+  const on = state.series.mode !== "none", rows = state.series.rows;
+  $("#series-on").checked = on;
+  $("#series-settings").style.opacity = on ? 1 : .5;
+  $$("[data-s]").forEach(el => { el.value = state.series[el.dataset.s] ?? ""; });
+  $("#series").hidden = !on;
+  const badge = $("#serie-badge"); badge.hidden = !on; badge.textContent = rows.length;
+  if (!on) return;
+  $("#series-count").textContent = `${rows.length} Etikett${rows.length === 1 ? "" : "en"}`;
+  const g = $("#sgrid");
+  g.innerHTML = rows.map((r, i) => `<div class="scard ${i === showIdx ? "on" : ""} ${i === editing ? "editing" : ""}" data-r="${i}">
+      <div class="pic"><img data-pic="${i}" alt=""></div>
+      <div class="line"><span class="num">${i + 1}</span><input type="text" data-v="${i}" value="${esc(r.value)}">
+        ${r.items ? `<span class="tag" title="eigene Gestaltung">eigen</span>` : ""}</div>
+      <div class="line"><button class="btn small ${i === editing ? "soft" : ""}" data-edit="${i}" title="dieses Etikett einzeln gestalten">✎ Gestalten</button>
+        <span class="grow"></span>
+        <button class="btn ghost small" data-rdup="${i}" title="duplizieren">⧉</button>
+        <button class="btn ghost small" data-rdel="${i}" title="entfernen">✕</button></div></div>`).join("")
+    + `<button class="addcard" id="addrow">＋ Etikett</button>`;
+  $$("[data-r]", g).forEach(c => c.addEventListener("click", e => {
+    if (e.target.closest("button,input")) return;
+    showIdx = +c.dataset.r; markSeries(); drawPreview();
+  }));
+  $$("[data-v]", g).forEach(inp => {
+    inp.addEventListener("focus", () => { showIdx = +inp.dataset.v; markSeries(); drawPreview(); });
+    inp.addEventListener("input", () => { rows[+inp.dataset.v].value = inp.value; if (editing === +inp.dataset.v) renderContext(); changed(); });
+    inp.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); const n = $(`[data-v="${+inp.dataset.v + 1}"]`); if (n) n.focus(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); const n = $(`[data-v="${+inp.dataset.v - 1}"]`); if (n) n.focus(); }
+    });
+  });
+  $$("[data-edit]", g).forEach(b => b.addEventListener("click", () => {
+    const i = +b.dataset.edit;
+    if (editing === i) { editing = null; } else {
+      if (!rows[i].items) rows[i].items = clone(state.items);
+      editing = i; showIdx = i;
+    }
+    selected = openItem = 0; renderAll(); showTab("inhalt"); changed();
+  }));
+  $$("[data-rdup]", g).forEach(b => b.addEventListener("click", () => {
+    const i = +b.dataset.rdup; rows.splice(i + 1, 0, clone(rows[i])); if (editing !== null && editing > i) editing++;
+    renderSeries(); changed();
+  }));
+  $$("[data-rdel]", g).forEach(b => b.addEventListener("click", () => {
+    const i = +b.dataset.rdel; if (rows.length <= 1) return;
+    rows.splice(i, 1);
+    if (editing === i) editing = null; else if (editing !== null && editing > i) editing--;
+    showIdx = Math.min(showIdx, rows.length - 1); renderAll(); changed();
+  }));
+  $("#addrow").addEventListener("click", () => {
+    const last = rows[rows.length - 1]?.value ?? "0";
+    const m = /^(.*?)(\d+)$/.exec(last);
+    const next = m ? m[1] + String(+m[2] + 1).padStart(m[2].length, "0") : last + "-2";
+    rows.push({ value: next, items: null }); renderSeries(); changed();
+    const inp = $(`[data-v="${rows.length - 1}"]`); if (inp) { inp.focus(); inp.select(); }
+  });
+  updateSeriesPics();
+}
+function markSeries() { $$("#sgrid [data-r]").forEach(c => c.classList.toggle("on", +c.dataset.r === showIdx)); }
+function updateSeriesPics() {
+  if (!preview) return;
+  $$("#sgrid [data-pic]").forEach(img => { const s = preview.images[+img.dataset.pic]; if (s && img.src !== s) img.src = s; });
 }
 
 // ---------- Globale Felder ----------
+function swatchRow(box, list, key) {
+  box.innerHTML = `<button class="auto" data-c="auto" title="vom Drucker gemeldet">Auto</button>` +
+    list.map(([c, n]) => `<button data-c="${c}" title="${n}" class="${c === "clear" ? "clear-pattern" : ""}" style="${c === "clear" ? "" : `background:${c}`}"></button>`).join("");
+  $$("button", box).forEach(b => b.addEventListener("click", () => { state[key] = b.dataset.c; syncGlobals(); drawPreview(); store.set("ptouch-studio-v2", state); }));
+}
 function bindGlobals() {
-  const tape = $("#tape");
-  tape.innerHTML = `<option value="auto">Automatisch</option>` + CFG.tapes.map(t => `<option value="${t}">${String(t).replace(".", ",")} mm</option>`).join("");
+  $("#tape").innerHTML = `<option value="auto">Automatisch</option>` + CFG.tapes.map(t => `<option value="${t}">${String(t).replace(".", ",")} mm</option>`).join("");
   $$("[data-k]").forEach(el => {
     const k = el.dataset.k;
     el.addEventListener("input", () => {
       let v = el.type === "checkbox" ? el.checked : el.value;
       if (el.type === "number") v = v === "" ? 0 : +v;
       if (k === "tape" && v !== "auto") v = +v;
-      state[k] = v; changed();
+      state[k] = v; if (k === "length_mm") syncGlobals(); changed();
     });
   });
-  $$("[data-s]").forEach(el => el.addEventListener("input", () => {
-    const k = el.dataset.s; state.series[k] = el.type === "number" ? +el.value : el.value; changed();
-  }));
-  $$("#seriesmode button").forEach(b => b.addEventListener("click", () => { state.series.mode = b.dataset.v; syncGlobals(); changed(); }));
+  $$("[data-len]").forEach(b => b.addEventListener("click", () => { state.length_mm = +b.dataset.len; syncGlobals(); changed(); }));
+  swatchRow($("#tape-colors"), TAPE_COLORS, "preview_tape");
+  swatchRow($("#ink-colors"), INK_COLORS, "preview_ink");
 }
 function syncGlobals() {
-  $$("[data-k]").forEach(el => {
-    const v = state[el.dataset.k];
-    if (el.type === "checkbox") el.checked = !!v; else el.value = v ?? "";
-  });
-  $$("[data-s]").forEach(el => { el.value = state.series[el.dataset.s] ?? ""; });
-  const m = state.series.mode;
-  $$("#seriesmode button").forEach(b => b.classList.toggle("on", b.dataset.v === m));
-  $("#series-numbers").style.display = m === "numbers" ? "" : "none";
-  $("#series-list").style.display = m === "list" ? "" : "none";
+  $$("[data-k]").forEach(el => { const v = state[el.dataset.k]; if (el.type === "checkbox") el.checked = !!v; else if (document.activeElement !== el) el.value = v ?? ""; });
+  $$("[data-len]").forEach(b => b.classList.toggle("soft", +b.dataset.len === +state.length_mm));
+  $$("#tape-colors button").forEach(b => b.classList.toggle("on", b.dataset.c === (state.preview_tape || "auto")));
+  $$("#ink-colors button").forEach(b => b.classList.toggle("on", b.dataset.c === (state.preview_ink || "auto")));
 }
+function renderAll() { syncGlobals(); renderItems(); renderSeries(); }
+
+// ---------- Schnellstart ----------
+$$("[data-quick]").forEach(b => b.addEventListener("click", () => {
+  const q = b.dataset.quick;
+  if (items().length && !confirm("Aktuelles Etikett durch den Schnellstart ersetzen?")) return;
+  editing = null; state.series.rows = [];
+  if (q === "schild") {
+    state.items = [Object.assign(NEW.number(), { divider: true, divider_px: 1 }), Object.assign(NEW.text(), { text: "" })];
+    state.length_mm = state.length_mm || 90; state.series.digits = 2; state.series.start = 1; state.series.end = 10;
+    state.series.mode = "on"; setRows(genValues(state.series));
+  } else if (q === "qrnum") {
+    state.items = [NEW.qr(), Object.assign(NEW.number(), { position: "flow", size_pct: 60 })];
+    state.length_mm = 0; state.gap_mm = 1.5; state.series.digits = 5; state.series.start = 1; state.series.end = 10;
+    state.series.mode = "on"; setRows(genValues(state.series));
+  } else {
+    state.items = [Object.assign(NEW.text(), { text: "Hallo" })];
+    state.series.mode = "none"; editing = null;
+  }
+  selected = openItem = 0; renderAll(); changed();
+}));
 
 // ---------- Vorschau ----------
 let timer = null, seq = 0;
-function changed() {
-  store.set("ptouch-studio-spec", state);
-  clearTimeout(timer); timer = setTimeout(refreshPreview, 220);
-}
+function changed() { store.set("ptouch-studio-v2", state); clearTimeout(timer); timer = setTimeout(refreshPreview, 230); }
 async function refreshPreview() {
   const my = ++seq; $("#stage").classList.add("busy");
   let res;
   try { res = await api("/api/preview", state); } catch (e) { res = { error: String(e) }; }
   if (my !== seq) return;
   $("#stage").classList.remove("busy");
-  if (res.error) { $("#stage").innerHTML = `<div class="msg err">${res.error}</div>`; return; }
+  if (res.error) { $("#stage").innerHTML = `<div class="msg err">${esc(res.error)}</div>`; return; }
   preview = res; if (showIdx >= res.images.length) showIdx = 0;
-  drawPreview(); drawThumbs(); drawInfo();
+  drawPreview(); drawStats(); updateSeriesPics();
 }
-function currentColors() {
-  const st = CFG.status || {};
-  const autoTape = state.tape === "auto" || +state.tape === st.tape_mm;
-  return {
-    tape: st.known && autoTape ? st.tape_css : "#ffffff",
-    ink: st.known && autoTape ? st.text_css : "#111111",
-    name: st.known && autoTape ? `${st.tape_color} / Schrift ${st.text_color}` : "",
-  };
+function colors() {
+  const st = CFG.status || {}, autoOk = st.known && (state.tape === "auto" || +state.tape === st.tape_mm);
+  const tape = state.preview_tape && state.preview_tape !== "auto" ? state.preview_tape : (autoOk ? st.tape_css : "#ffffff");
+  const ink = state.preview_ink && state.preview_ink !== "auto" ? state.preview_ink : (autoOk ? st.text_css : "#111111");
+  return { tape, ink };
 }
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 function drawPreview() {
-  const p = preview; if (!p) return;
+  const p = preview; if (!p || !p.images.length) return;
+  const idx = Math.min(showIdx, p.images.length - 1);
   const img = new Image();
   img.onload = () => {
-    const colors = currentColors(), ink = hexToRgb(colors.ink);
+    const col = colors(), ink = hexToRgb(col.ink);
     const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
     const g = c.getContext("2d"); g.drawImage(img, 0, 0);
     const d = g.getImageData(0, 0, c.width, c.height), a = d.data;
@@ -502,40 +762,37 @@ function drawPreview() {
     }
     g.putImageData(d, 0, 0);
     const marginPx = Math.max(14, Math.round(state.margin_mm * 180 / 25.4));
-    const totalW = p.width_px + 2 * marginPx;
-    const stage = $("#stage"), avail = stage.clientWidth - 40;
-    const z = $("#zoom").value;
-    const k = z === "fit" ? Math.max(0.2, Math.min(6, avail / totalW, 260 / p.tape_px)) : +z;
-    const tape = document.createElement("div"); tape.className = "tape";
-    tape.style.background = colors.tape; tape.style.height = (p.tape_px * k) + "px";
-    tape.title = `Band ${p.tape_mm} mm` + (colors.name ? ` (${colors.name})` : "");
+    const totalW = p.width_px + 2 * marginPx, stage = $("#stage"), avail = stage.clientWidth - 60;
+    const z = $("#zoom .on").dataset.z;
+    const k = z === "fit" ? Math.max(0.2, Math.min(6, avail / totalW, 230 / p.tape_px)) : +z;
+    const tape = document.createElement("div"); tape.className = "tape" + (col.tape === "clear" ? " clear-pattern" : "");
+    if (col.tape !== "clear") tape.style.background = col.tape;
+    tape.style.height = (p.tape_px * k) + "px";
     const feed = () => { const f = document.createElement("div"); f.className = "feed"; f.style.width = (marginPx * k) + "px"; return f; };
     c.style.width = (p.width_px * k) + "px"; c.style.height = (p.pins * k) + "px";
-    tape.append(feed(), c, feed());
+    const ruler = document.createElement("div"); ruler.className = "ruler"; ruler.textContent = `≈ ${String(p.length_mm).replace(".", ",")} mm`;
+    tape.append(feed(), c, feed(), ruler);
     stage.innerHTML = ""; stage.append(tape);
+    const v = p.values[idx];
+    $("#preview-title").textContent = p.count > 1 ? `Vorschau · Etikett ${idx + 1} von ${p.count}${v != null ? ` („${v}“)` : ""}` : "Vorschau";
   };
-  img.src = p.images[showIdx];
+  img.src = p.images[idx];
 }
-function drawThumbs() {
-  const box = $("#thumbs"), p = preview;
-  if (!p || p.count <= 1) { box.innerHTML = ""; return; }
-  box.innerHTML = p.images.map((src, i) => `<button class="${i === showIdx ? "on" : ""}" data-t="${i}"><img src="${src}"><span>${p.values[i] ?? i + 1}</span></button>`).join("")
-    + (p.count > p.images.length ? `<span class="hint">… und ${p.count - p.images.length} weitere</span>` : "");
-  $$("[data-t]", box).forEach(b => b.addEventListener("click", () => { showIdx = +b.dataset.t; drawPreview(); drawThumbs(); }));
-}
-function drawInfo() {
+function drawStats() {
   const p = preview, total = p.count * Math.max(1, state.copies || 1);
-  $("#info").innerHTML = `<span>Band <b>${String(p.tape_mm).replace(".", ",")} mm</b>${state.tape === "auto" ? " (auto)" : ""}</span>
-    <span>Länge ca. <b>${String(p.length_mm).replace(".", ",")} mm</b></span>
-    <span><b>${total}</b> Etikett${total === 1 ? "" : "en"}</span>`;
-  $("#print").textContent = total > 1 ? `${total} Etiketten drucken` : "Drucken";
+  $("#stats").innerHTML = `<div class="stat">Band<b>${String(p.tape_mm).replace(".", ",")} mm</b></div>
+    <div class="stat">Länge<b>≈ ${String(p.length_mm).replace(".", ",")} mm</b></div>
+    <div class="stat">Etiketten<b>${total}</b></div>`;
+  $("#print").innerHTML = `🖨 ${total > 1 ? `${total} Etiketten drucken` : "Drucken"}`;
   showMessages(p.warnings.map(w => ["warn", w]), "preview");
 }
 const MSG = { preview: [], print: [] };
 function showMessages(list, slot) {
   MSG[slot] = list;
-  $("#msgs").innerHTML = [...MSG.print, ...MSG.preview].map(([t, m]) => `<div class="msg ${t}">${m}</div>`).join("");
+  $("#msgs").innerHTML = [...MSG.print, ...MSG.preview].map(([t, m]) => `<div class="msg ${t}">${esc(m)}</div>`).join("");
 }
+$$("#zoom button").forEach(b => b.addEventListener("click", () => { $$("#zoom button").forEach(x => x.classList.toggle("on", x === b)); drawPreview(); }));
+window.addEventListener("resize", () => { clearTimeout(window._rz); window._rz = setTimeout(drawPreview, 150); });
 
 // ---------- Drucker ----------
 function showStatus(st) {
@@ -543,12 +800,11 @@ function showStatus(st) {
   const el = $("#status");
   if (st.known) {
     const err = st.errors && st.errors.length;
-    el.innerHTML = `<span class="dot ${err ? "err" : "ok"}"></span>
-      <span>PT-P710BT · <b>${String(st.tape_mm ?? "?").replace(".", ",")} mm</b></span>
-      <span class="swatch" style="background:${st.tape_css};color:${st.text_css}" title="${st.tape_color} / Schrift ${st.text_color}">A</span>
-      <span>${err ? st.errors.join(", ") : "bereit"}</span>`;
+    el.innerHTML = `<span class="dot ${err ? "err" : "ok"}"></span><span>PT-P710BT · <b>${String(st.tape_mm ?? "?").replace(".", ",")} mm</b></span>
+      <span class="sw" style="background:${st.tape_css};color:${st.text_css}" title="${esc(st.tape_color)} / Schrift ${esc(st.text_color)}">A</span>
+      <span>${err ? esc(st.errors.join(", ")) : "bereit"}</span>`;
   } else if (st.error) {
-    el.innerHTML = `<span class="dot err"></span><span title="${st.error}">Drucker nicht erreichbar</span>`;
+    el.innerHTML = `<span class="dot err"></span><span title="${esc(st.error)}">Drucker nicht erreichbar</span>`;
   } else {
     el.innerHTML = `<span class="dot wait"></span><span>Verbinde mit Drucker …</span>`;
   }
@@ -556,25 +812,21 @@ function showStatus(st) {
 async function pollStatus() {
   for (let i = 0; i < 60; i++) {
     const st = await api("/api/status");
-    if (st.known || st.error) { showStatus(st); drawPreview(); if (state.tape === "auto") refreshPreview(); return; }
+    if (st.known || st.error) { showStatus(st); if (state.tape === "auto") refreshPreview(); else drawPreview(); return; }
     await new Promise(r => setTimeout(r, 1500));
   }
 }
-$("#refresh").addEventListener("click", async () => {
-  showStatus({ known: false });
-  showStatus(await api("/api/status?refresh=1")); refreshPreview();
-});
+$("#refresh").addEventListener("click", async () => { showStatus({ known: false }); showStatus(await api("/api/status?refresh=1")); refreshPreview(); });
 $("#print").addEventListener("click", async () => {
-  const btn = $("#print"), label = btn.textContent;
-  btn.disabled = true; btn.textContent = "Drucke …";
+  const btn = $("#print"), label = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = "⏳ Drucke …";
   showMessages([["warn", "Verbinde und drucke – das dauert ein paar Sekunden …"]], "print");
   try {
     const r = await api("/api/print", state);
     if (r.status) showStatus(r.status);
-    if (r.ok) showMessages([["ok", "✓ " + r.messages.join(" · ")]], "print");
-    else showMessages([["err", "Nicht gedruckt: " + r.error]], "print");
+    showMessages(r.ok ? [["ok", "✓ " + r.messages.join(" · ")]] : [["err", "Nicht gedruckt: " + r.error]], "print");
   } catch (e) { showMessages([["err", "Verbindung zum Studio verloren: " + e]], "print"); }
-  btn.disabled = false; btn.textContent = label;
+  btn.disabled = false; btn.innerHTML = label;
 });
 $("#flipdefault").addEventListener("click", async () => {
   await api("/api/flip-default", { flip: !!state.flip });
@@ -582,16 +834,14 @@ $("#flipdefault").addEventListener("click", async () => {
 });
 $("#quit").addEventListener("click", async () => {
   if (!confirm("Etiketten-Studio beenden?")) return;
-  await api("/api/quit", {}); document.body.innerHTML = `<div style="padding:40px;font-size:18px">Studio beendet. Dieses Fenster kann geschlossen werden.</div>`;
+  await api("/api/quit", {}); document.body.innerHTML = `<div style="padding:60px;font-size:18px;text-align:center">Studio beendet – dieses Fenster kann geschlossen werden.</div>`;
 });
-$("#zoom").addEventListener("change", drawPreview);
-window.addEventListener("resize", () => { clearTimeout(window._rz); window._rz = setTimeout(drawPreview, 150); });
 
 // ---------- Vorlagen ----------
 function renderTemplates(list) {
-  $("#tpllist").innerHTML = list.length ? list.map(n => `<div class="tpl"><span>${n.replace(/</g, "&lt;")}</span>
-    <button class="btn small" data-load="${encodeURIComponent(n)}">Laden</button>
-    <button class="btn small" data-delt="${encodeURIComponent(n)}">✕</button></div>`).join("") : `<div class="hint">Noch keine Vorlagen gespeichert.</div>`;
+  $("#tpllist").innerHTML = list.length ? list.map(n => `<div class="tpl"><span>${esc(n)}</span>
+    <button class="btn small soft" data-load="${encodeURIComponent(n)}">Laden</button>
+    <button class="btn ghost small" data-delt="${encodeURIComponent(n)}">✕</button></div>`).join("") : `<div class="hint">Noch keine Vorlagen gespeichert.</div>`;
   $$("[data-load]").forEach(b => b.addEventListener("click", async () => {
     const spec = await api("/api/template?name=" + b.dataset.load);
     if (spec.error) return alert(spec.error);
@@ -609,36 +859,45 @@ $("#tplsave").addEventListener("click", async () => {
 });
 $("#reset").addEventListener("click", () => {
   if (!confirm("Aktuelles Etikett verwerfen?")) return;
-  const s = clone(CFG.defaults); s.flip = CFG.flip_default; s.items = [NEW.text()]; loadSpec(s);
+  loadSpec(Object.assign(clone(CFG.defaults), { flip: CFG.flip_default, items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
 });
+function fillItems(list) { return (list || []).map(it => Object.assign(NEW[it.type] ? NEW[it.type]() : {}, it)); }
 function loadSpec(spec) {
-  const s = Object.assign(clone(CFG.defaults), clone(spec));
-  s.series = Object.assign(clone(CFG.defaults.series), s.series || {});
-  s.items = (s.items || []).map(it => Object.assign(NEW[it.type] ? NEW[it.type]() : {}, it));
-  state = s; selected = 0; showIdx = 0;
-  syncGlobals(); renderItems(); changed();
+  const s = Object.assign(clone(CFG.defaults), { preview_tape: "auto", preview_ink: "auto" }, clone(spec));
+  s.series = Object.assign({ mode: "none", start: 1, end: 10, step: 1, digits: 2, rows: [] }, s.series || {});
+  // ältere Serien (Nummern/Liste ohne Zeilen) übernehmen
+  if (!Array.isArray(s.series.rows) || !s.series.rows.length) {
+    let vals = [];
+    if (s.series.mode === "numbers") vals = genValues(s.series);
+    if (s.series.mode === "list") vals = String(s.series.list || "").split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    s.series.rows = vals.map(v => ({ value: v, items: null }));
+    if (s.series.mode !== "none") s.series.mode = s.series.rows.length ? "on" : "none";
+  }
+  s.items = fillItems(s.items);
+  s.series.rows = s.series.rows.map(r => ({ value: String(r.value ?? ""), items: r.items ? fillItems(r.items) : null }));
+  state = s; selected = openItem = 0; showIdx = 0; editing = null;
+  renderAll(); changed();
 }
 
 // ---------- Einfügen & Ziehen ----------
 document.addEventListener("paste", e => {
-  const items = [...(e.clipboardData?.items || [])];
-  const imgItem = items.find(x => x.type.startsWith("image/"));
+  const imgItem = [...(e.clipboardData?.items || [])].find(x => x.type.startsWith("image/"));
   if (imgItem) { e.preventDefault(); addImageFile(imgItem.getAsFile()); }
 });
 let dragDepth = 0;
 window.addEventListener("dragenter", e => { if ([...e.dataTransfer.types].includes("Files")) { dragDepth++; $("#drop").classList.add("on"); } });
 window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("#drop").classList.remove("on"); } });
 window.addEventListener("dragover", e => e.preventDefault());
-window.addEventListener("drop", e => {
-  e.preventDefault(); dragDepth = 0; $("#drop").classList.remove("on");
-  [...(e.dataTransfer?.files || [])].forEach(addImageFile);
-});
+window.addEventListener("drop", e => { e.preventDefault(); dragDepth = 0; $("#drop").classList.remove("on"); [...(e.dataTransfer?.files || [])].forEach(addImageFile); });
 
 // ---------- Hinzufügen ----------
 $$("[data-add]").forEach(b => b.addEventListener("click", async () => {
   const it = NEW[b.dataset.add]();
   if (it.type === "symbol") await updateSymbol(it);
-  state.items.push(it); selected = state.items.length - 1; renderItems(); changed();
+  if (it.type === "number" && items().some(x => x.type === "number" && x.position === "left")) it.position = "right";
+  items().push(it); selected = openItem = items().length - 1;
+  if ((it.type === "number" || it.type === "qr") && state.series.mode === "none") ensureSeries(it.type === "qr" ? 5 : undefined);
+  renderAll(); changed();
   const card = $(`.item[data-idx="${selected}"]`); if (card) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
   if (it.type === "image") { const fi = $("[data-file]", card); if (fi) fi.click(); }
 }));
@@ -647,9 +906,8 @@ $$("[data-add]").forEach(b => b.addEventListener("click", async () => {
 (async function init() {
   CFG = await api("/api/config");
   bindGlobals();
-  const saved = store.get("ptouch-studio-spec");
-  const s = saved || Object.assign(clone(CFG.defaults), { flip: CFG.flip_default, items: [Object.assign(NEW.text(), { text: "Hallo" })] });
-  loadSpec(s);
+  const saved = store.get("ptouch-studio-v2") || store.get("ptouch-studio-spec");
+  loadSpec(saved || Object.assign(clone(CFG.defaults), { flip: CFG.flip_default, items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
   for (const it of state.items) if (it.type === "symbol" && !it.src) await updateSymbol(it);
   renderTemplates(CFG.templates);
   showStatus(CFG.status);

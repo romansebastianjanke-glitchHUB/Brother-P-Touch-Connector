@@ -137,6 +137,8 @@ class Studio:
                 for i, lines in enumerate(pages, 1):
                     res = p.print_job(protocol.build_job(lines, tape, **opts))
                     self._check(res, messages, f"Etikett {i}/{total}")
+        if len(messages) > 3 and all(m.endswith(": gedruckt") for m in messages):
+            messages = [f"{len(messages)} Etiketten gedruckt"]
         log("Fertig: " + " | ".join(messages))
         return {"ok": True, "messages": messages, "warnings": warnings, "status": self.status}
 
@@ -159,7 +161,7 @@ class Studio:
         left, pins = protocol.tape_spec(tape)
         images, warnings, values = layout.render_all(spec, tape)
         out = []
-        for img in images[:24]:
+        for img in images[:120]:
             if spec.get("flip_preview"):
                 img = img.rotate(180)
             buf = io.BytesIO()
@@ -170,7 +172,7 @@ class Studio:
         return {
             "images": out,
             "count": len(images),
-            "values": values[:24],
+            "values": values[:120],
             "copies": int(spec.get("copies", 1)),
             "tape_mm": tape,
             "pins": pins,
