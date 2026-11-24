@@ -89,3 +89,17 @@ def test_render_text_height_matches_tape():
         img = render.render_text("Hallo", width)
         assert img.height == protocol.tape_spec(width)[1]
         assert img.width > 10
+
+
+def test_orientation_top_row_goes_to_highest_pin():
+    # Am PT-P710BT bestätigt: ohne diese Zuordnung druckt er seitenverkehrt
+    left, pins = protocol.tape_spec(12)
+    img = Image.new("1", (1, pins), 1)
+    img.putpixel((0, 0), 0)  # oberste Bildzeile
+    line = render.to_raster_lines(img, 12)[0]
+    bits = "".join(f"{b:08b}" for b in line)
+    set_pins = {127 - i for i, c in enumerate(bits) if c == "1"}
+    assert set_pins == {left + pins - 1}
+    mirrored = render.to_raster_lines(img, 12, mirror=True)[0]
+    bits = "".join(f"{b:08b}" for b in mirrored)
+    assert {127 - i for i, c in enumerate(bits) if c == "1"} == {left}

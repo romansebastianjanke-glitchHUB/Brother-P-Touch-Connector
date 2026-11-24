@@ -49,6 +49,16 @@ FONT_DIRS = [
 ]
 
 
+def margin_dots(spec: dict) -> int:
+    """Rand vor und nach dem Inhalt in Druckpunkten (Drucker-Minimum 14 ≈ 2 mm)."""
+    return max(14, min(900, int(float(spec.get("margin_mm", 2) or 0) * MM)))
+
+
+def total_length_mm(spec: dict, content_px: int) -> float:
+    """Tatsächliche Etikettlänge: Rand + Inhalt + Rand (+ Längenkorrektur des Geräts)."""
+    return (content_px + 2 * margin_dots(spec)) / MM + float(spec.get("_length_offset_mm", 0) or 0)
+
+
 # --- Schriften -------------------------------------------------------------------
 
 _FONT_CACHE: dict[str, str] | None = None
@@ -394,13 +404,57 @@ def series_values(spec: dict) -> list[str | None]:
     return [r["value"] for r in series_rows(spec)]
 
 
+def item_position(it: dict) -> str:
+    """links / mitte / rechts. Alte Nummern ohne Angabe stehen links, 'flow' = mitte."""
+    p = it.get("position")
+    if p in ("left", "right"):
+        return p
+    if not p and it.get("type") == "number":
+        return "left"
+    return "center"
+
+
+def _scaled(items: list, f: float) -> list:
+    out = []
+    for it in items:
+        it = dict(it)
+        if it.get("type") in ("text", "number") and it.get("size_mode") == "fixed":
+            it["size_px"] = max(6, float(it.get("size_px", 40)) * f)
+        elif it.get("type") != "spacer":
+            it["size_pct"] = max(15, float(it.get("size_pct", 100)) * f)
+        out.append(it)
+    return out
+
+
 def render_label(spec: dict, tape_mm: float, value: str | None = None,
                  items: list | None = None) -> tuple[Image.Image, list[str]]:
+    """Wie _render_label_once; passt der Inhalt nicht in die feste Länge, wird er
+    automatisch verkleinert, damit die eingestellte Länge die echte Länge bleibt."""
+    src = items if items is not None else spec.get("items", [])
+    img, warnings, need = _render_label_once(spec, tape_mm, value, src)
+    if need is None or spec.get("autofit") is False:
+        return img, warnings
+    have, natural = need
+    f = 1.0
+    for _ in range(6):
+        f *= max(0.5, min(0.97, have / natural))
+        img2, w2, need2 = _render_label_once(spec, tape_mm, value, _scaled(src, f))
+        if need2 is None:
+            w2.append(f"Inhalt auf {f * 100:.0f} % verkleinert, damit er auf {float(spec['length_mm']):g} mm passt.")
+            return img2, w2
+        have, natural = need2
+        if f < 0.2:
+            break
+    return img, warnings
+
+
+def _render_label_once(spec: dict, tape_mm: float, value: str | None,
+                       items: list) -> tuple[Image.Image, list[str], tuple | None]:
     """Ein Etikett als Schwarzweißbild (L-Modus, Höhe = bedruckbare Pins).
 
-    Aufbau: [Nummer links] | [übrige Elemente] | [Nummer rechts]. Nummern-Elemente
-    mit Position links/rechts bleiben bei fester Etikettlänge am Rand stehen,
-    die übrigen Elemente werden im Rest ausgerichtet. Optional mit Trennlinie.
+    Aufbau: [Elemente links] | [Elemente Mitte] | [Elemente rechts]. Links/rechts
+    bleiben bei fester Etikettlänge am Rand stehen, die Mitte wird im Rest
+    ausgerichtet. Links/rechts optional mit Trennlinie zur Mitte.
     """
     _, h = tape_spec(tape_mm)
     warnings: list[str] = []
@@ -410,10 +464,10 @@ def render_label(spec: dict, tape_mm: float, value: str | None = None,
     inner_h = max(4, h - 2 * inner_pad_v)
     gap = int(float(spec.get("gap_mm", 2)) * MM)
 
-    src_items = [it for it in (items if items is not None else spec.get("items", [])) if it]
-    left_items = [it for it in src_items if it.get("type") == "number" and it.get("position", "left") == "left"]
-    right_items = [it for it in src_items if it.get("type") == "number" and it.get("position") == "right"]
-    mid_items = [it for it in src_items if it not in left_items and it not in right_items]
+    src_items = [it for it in items if it]
+    left_items = [it for it in src_items if item_position(it) == "left"]
+    right_items = [it for it in src_items if item_position(it) == "right"]
+    mid_items = [it for it in src_items if item_position(it) == "center"]
 
     def strip(its):
         parts = [render_item(it, inner_h, value, warnings) for it in its]
@@ -451,11 +505,21 @@ def render_label(spec: dict, tape_mm: float, value: str | None = None,
     if rblk and mid:
         natural += r_gap
     width = natural
+    overflow = None
     fixed = float(spec.get("length_mm", 0) or 0)
     if fixed > 0:
-        fixed_w = int(fixed * MM)
+        # eingegebene Länge = Länge des fertigen Etiketts, also Ränder abziehen
+        offset = float(spec.get("_length_offset_mm", 0) or 0)
+        fixed_w = int(round((fixed - offset) * MM)) - 2 * margin_dots(spec)
+        if fixed_w < 8:
+            min_mm = total_length_mm(spec, 8)
+            warnings.append(f"Etikettlänge {fixed:g} mm ist zu kurz – wegen des Rands vor/nach dem Druck "
+                            f"sind mindestens {min_mm:.0f} mm nötig (Rand im Tab Druck verkleinern).")
+            fixed_w = 8
         if fixed_w < natural:
-            warnings.append(f"Inhalt ist länger als die feste Länge ({natural / MM:.0f} mm > {fixed:g} mm) – wird abgeschnitten.")
+            overflow = (fixed_w, natural)
+            warnings.append(f"Inhalt passt nicht auf {fixed:g} mm (bräuchte ≈ {total_length_mm(spec, natural):.0f} mm) "
+                            "– wird abgeschnitten. Abstände verringern oder Länge erhöhen.")
         width = fixed_w
     img = _blank(width, h)
     d = ImageDraw.Draw(img)
@@ -501,7 +565,7 @@ def render_label(spec: dict, tape_mm: float, value: str | None = None,
             d.rectangle(box, outline=0, width=fpx)
     if spec.get("invert"):
         img = ImageOps.invert(img)
-    return img.point(lambda p: 0 if p < 128 else 255), warnings
+    return img.point(lambda p: 0 if p < 128 else 255), warnings, overflow
 
 
 def render_all(spec: dict, tape_mm: float) -> tuple[list[Image.Image], list[str], list[str | None]]:

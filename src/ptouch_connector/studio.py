@@ -45,7 +45,32 @@ class Studio:
         self.stop = threading.Event()
         t = home / ".transport"
         self.transport = t.read_text().strip() if t.exists() else DEFAULT_TRANSPORT
-        self.flip_default = (home / ".flip").exists()
+        self.history = home / "verlauf"
+        self.settings_file = home / ".einstellungen.json"
+        self.settings = {"mirror": False, "length_offset_mm": 0.0}
+        try:
+            self.settings.update(json.loads(self.settings_file.read_text()))
+        except Exception:  # noqa: BLE001
+            pass
+        # ".flip" glich einen inzwischen behobenen Spiegelfehler aus -> entfernen
+        legacy = home / ".flip"
+        if legacy.exists():
+            legacy.unlink()
+            log("Alte Einstellung „.flip“ entfernt (Ausrichtung ist jetzt im Programm korrigiert).")
+
+    def save_settings(self, data: dict) -> dict:
+        if "mirror" in data:
+            self.settings["mirror"] = bool(data["mirror"])
+        if "length_offset_mm" in data:
+            self.settings["length_offset_mm"] = max(-50.0, min(50.0, float(data["length_offset_mm"] or 0)))
+        self.settings_file.write_text(json.dumps(self.settings, indent=1))
+        return self.settings
+
+    def _prep(self, spec: dict) -> dict:
+        """Geräte-Einstellungen in die Etikettbeschreibung übernehmen."""
+        spec = dict(spec)
+        spec["_length_offset_mm"] = float(self.settings.get("length_offset_mm", 0) or 0)
+        return spec
 
     # --- Drucker-Thread (Haupt-Thread) ------------------------------------------
 
@@ -97,6 +122,8 @@ class Studio:
         return self.status
 
     def do_print(self, spec: dict) -> dict:
+        original = spec
+        spec = self._prep(spec)
         messages: list[str] = []
         with open_printer(self.transport, log=lambda m: None) as p:
             st = p.status()
@@ -115,15 +142,15 @@ class Studio:
                                    "Band wechseln oder „Automatisch“ wählen.")
             images, warnings, values = layout.render_all(spec, tape)
             copies = max(1, min(99, int(spec.get("copies", 1))))
-            flip = bool(spec.get("flip"))
+            mirror = bool(self.settings.get("mirror"))
             pages = []
             for img in images:
-                lines = render.to_raster_lines(img, tape, flip=flip)
+                lines = render.to_raster_lines(img, tape, mirror=mirror)
                 pages += [lines] * copies
             cut = spec.get("cut", "full")
             opts = dict(
                 media_type=st.media_type_code or 0x01,
-                margin_dots=max(14, min(900, int(float(spec.get("margin_mm", 2)) * layout.MM))),
+                margin_dots=layout.margin_dots(spec),
                 auto_cut=cut != "none",
                 half_cut=cut == "half",
             )
@@ -140,6 +167,10 @@ class Studio:
         if len(messages) > 3 and all(m.endswith(": gedruckt") for m in messages):
             messages = [f"{len(messages)} Etiketten gedruckt"]
         log("Fertig: " + " | ".join(messages))
+        try:
+            self.add_history(original, images, values, tape, total)
+        except Exception as e:  # noqa: BLE001
+            log(f"Verlauf konnte nicht gespeichert werden: {e}")
         return {"ok": True, "messages": messages, "warnings": warnings, "status": self.status}
 
     @staticmethod
@@ -154,6 +185,7 @@ class Studio:
     # --- Vorschau (im Web-Thread, ohne Drucker) ---------------------------------
 
     def preview(self, spec: dict) -> dict:
+        spec = self._prep(spec)
         tape = spec.get("tape", "auto")
         if tape == "auto":
             tape = self.status.get("tape_mm") or 12
@@ -161,14 +193,9 @@ class Studio:
         left, pins = protocol.tape_spec(tape)
         images, warnings, values = layout.render_all(spec, tape)
         out = []
-        for img in images[:120]:
-            if spec.get("flip_preview"):
-                img = img.rotate(180)
-            buf = io.BytesIO()
-            img.convert("1").save(buf, "PNG")
-            out.append("data:image/png;base64," + base64.b64encode(buf.getvalue()).decode())
+        out = [_png(img) for img in images[:120]]
         w = images[0].width
-        margin = max(14, int(float(spec.get("margin_mm", 2)) * layout.MM))
+        margin = layout.margin_dots(spec)
         return {
             "images": out,
             "count": len(images),
@@ -179,9 +206,50 @@ class Studio:
             "tape_px": round(tape * layout.MM),
             "width_px": w,
             "content_mm": round(w / layout.MM, 1),
-            "length_mm": round((w + 2 * margin) / layout.MM, 1),
+            "margin_px": margin,
+            "length_mm": round(layout.total_length_mm(spec, w), 1),
             "warnings": warnings,
         }
+
+    # --- Verlauf -------------------------------------------------------------------
+
+    def add_history(self, spec: dict, images, values, tape: float, total: int) -> None:
+        self.history.mkdir(exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        vals = [v for v in values if v is not None]
+        title = _title(spec, vals)
+        entry = {
+            "id": f"{stamp}-{int(time.time() * 1000) % 1000:03d}",
+            "time": time.strftime("%d.%m.%Y %H:%M"),
+            "title": title,
+            "count": total,
+            "labels": len(images),
+            "tape_mm": tape,
+            "thumb": _png(images[0]),
+            "spec": spec,
+        }
+        (self.history / f"{entry['id']}.json").write_text(json.dumps(entry, ensure_ascii=False))
+        files = sorted(self.history.glob("*.json"))
+        for old in files[:-300]:  # höchstens 300 Einträge behalten
+            old.unlink()
+
+    def list_history(self) -> list[dict]:
+        if not self.history.is_dir():
+            return []
+        out = []
+        for f in sorted(self.history.glob("*.json"), reverse=True):
+            try:
+                e = json.loads(f.read_text())
+                e.pop("spec", None)
+                out.append(e)
+            except Exception:  # noqa: BLE001
+                continue
+        return out
+
+    def _history_path(self, hid: str) -> Path:
+        if not re.fullmatch(r"[\w-]+", hid or ""):
+            raise ValueError("ungültiger Eintrag")
+        return self.history / f"{hid}.json"
 
     # --- Vorlagen ----------------------------------------------------------------
 
@@ -193,6 +261,25 @@ class Studio:
         if not self.templates.is_dir():
             return []
         return sorted(p.stem for p in self.templates.glob("*.json"))
+
+
+def _png(img) -> str:
+    buf = io.BytesIO()
+    img.convert("1").save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def _title(spec: dict, values: list) -> str:
+    texts = []
+    for it in spec.get("items", []):
+        t = it.get("text") if it.get("type") in ("text", "number") else it.get("data") if it.get("type") in ("qr", "barcode") else None
+        if t and t.strip() and t.strip() != "{n}":
+            texts.append(t.replace("{n}", "#").split("\n")[0].strip())
+    title = " · ".join(texts[:2])[:60]
+    if values:
+        rng = values[0] if len(values) == 1 else f"{values[0]} – {values[-1]}"
+        title = f"{rng}  {title}".strip()
+    return title or "Etikett"
 
 
 def make_handler(studio: Studio):
@@ -232,7 +319,7 @@ def make_handler(studio: Studio):
                     return self._json({
                         "fonts": list(layout.list_fonts().keys()),
                         "tapes": list(protocol.TAPE_SPECS.keys()),
-                        "flip_default": studio.flip_default,
+                        "settings": studio.settings,
                         "transport": studio.transport,
                         "status": studio.status,
                         "templates": studio.list_templates(),
@@ -244,6 +331,11 @@ def make_handler(studio: Studio):
                     return self._json({**studio.status, "busy": studio.busy})
                 if u.path == "/api/template":
                     p = studio._tpl_path(q.get("name", [""])[0])
+                    return self._json(json.loads(p.read_text()))
+                if u.path == "/api/history":
+                    return self._json(studio.list_history())
+                if u.path == "/api/history/item":
+                    p = studio._history_path(q.get("id", [""])[0])
                     return self._json(json.loads(p.read_text()))
                 self._json({"error": "nicht gefunden"}, 404)
             except Exception as e:  # noqa: BLE001
@@ -270,13 +362,12 @@ def make_handler(studio: Studio):
                     if p.exists():
                         p.unlink()
                     return self._json({"ok": True, "templates": studio.list_templates()})
-                if u.path == "/api/flip-default":
-                    f = studio.home / ".flip"
-                    if data.get("flip"):
-                        f.touch()
-                    elif f.exists():
-                        f.unlink()
-                    studio.flip_default = bool(data.get("flip"))
+                if u.path == "/api/settings":
+                    return self._json(studio.save_settings(data))
+                if u.path == "/api/history/delete":
+                    p = studio._history_path(str(data.get("id", "")))
+                    if p.exists():
+                        p.unlink()
                     return self._json({"ok": True})
                 if u.path == "/api/quit":
                     self._json({"ok": True})

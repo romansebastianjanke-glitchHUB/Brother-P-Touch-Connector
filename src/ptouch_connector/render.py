@@ -69,12 +69,12 @@ def load_image(path: str, width_mm: float, *, threshold: int = 128) -> Image.Ima
     return img.point(lambda p: 0 if p < threshold else 255).convert("1")
 
 
-def to_raster_lines(img: Image.Image, width_mm: float, *, flip: bool = False) -> list[bytes]:
+def to_raster_lines(img: Image.Image, width_mm: float, *, mirror: bool = False) -> list[bytes]:
     """Bild (Höhe = bedruckbare Pins) in 16-Byte-Rasterzeilen umwandeln.
 
-    Bildspalte x -> Rasterzeile x, Bildzeile y -> Pin (linker Rand + y).
-    Wie bei ptouch-print wird die Pin-Nummer innerhalb der Zeile gespiegelt
-    abgelegt. Falls der Ausdruck auf dem Kopf steht, `flip=True` setzen.
+    Bildspalte x -> Rasterzeile x. Am PT-P710BT getestet: Bildzeile y muss auf
+    Pin (linker Rand + Pins - 1 - y) liegen, sonst ist der Druck spiegelverkehrt.
+    `mirror=True` spiegelt bewusst (nur falls ein Gerät es anders braucht).
     """
     left, pins = tape_spec(width_mm)
     if img.height != pins:
@@ -86,7 +86,7 @@ def to_raster_lines(img: Image.Image, width_mm: float, *, flip: bool = False) ->
         line = bytearray(LINE_BYTES)
         for y in range(pins):
             if px[x, y] == 0:  # schwarz
-                row = pins - 1 - y if flip else y
+                row = y if mirror else pins - 1 - y
                 pin = left + row
                 line[(HEAD_PINS - 1 - pin) // 8] |= 0x80 >> ((HEAD_PINS - 1 - pin) % 8)
         lines.append(bytes(line))

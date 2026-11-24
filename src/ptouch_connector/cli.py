@@ -98,7 +98,7 @@ def cmd_print(args) -> None:
     if not tape:
         tape = 12
     img = _image(args, tape)
-    lines = render.to_raster_lines(img, tape, flip=args.flip)
+    lines = render.to_raster_lines(img, tape, mirror=args.mirror)
     job = protocol.build_job(
         lines,
         tape,
@@ -167,7 +167,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--margin", type=int, default=14, help="Rand in Punkten (14 ≈ 2 mm)")
     p.add_argument("--no-cut", action="store_true", help="nicht automatisch abschneiden")
     p.add_argument("--half-cut", action="store_true", help="Halbschnitt (Trägerpapier bleibt)")
-    p.add_argument("--flip", action="store_true", help="Druck um 180° drehen, falls verkehrt")
+    p.add_argument("--mirror", action="store_true", help="Druck spiegeln (nur falls er seitenverkehrt herauskommt)")
+    p.add_argument("--flip", action="store_true", help=argparse.SUPPRESS)  # alt, wirkungslos
     p.add_argument("--no-status", action="store_true", help="ohne Statusabfrage drucken (--tape angeben)")
     p.add_argument("--dry-run", action="store_true", help="nur Auftrag als Datei schreiben")
     p.add_argument("--out", help="Zieldatei für --dry-run")

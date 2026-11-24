@@ -48,9 +48,9 @@ main { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr)
 .side { position: sticky; top: 74px; max-height: calc(100vh - 94px); display: flex; flex-direction: column; background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .tabs { display: flex; gap: 4px; padding: 8px; background: var(--bg2); border-bottom: 1px solid var(--line); overflow-x: auto; }
-.tabs button { flex: 1; border: 0; background: transparent; padding: 8px 10px; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.tabs button { flex: 1; border: 0; background: transparent; padding: 8px 6px; font-size: 13px; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .tabs button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(20,22,50,.12); }
-.tabs .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-size: 11px; }
+.tabs .badge { display: inline-block; min-width: 16px; padding: 0 4px; margin-left: 3px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-size: 11px; }
 .pane { display: none; padding: 16px; overflow-y: auto; flex-direction: column; gap: 14px; }
 .pane.on { display: flex; }
 .stage-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -167,6 +167,27 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
 .addcard { border: 2px dashed var(--line); border-radius: 12px; display: grid; place-items: center; min-height: 92px; color: var(--muted); cursor: pointer; font-weight: 600; background: transparent; }
 .addcard:hover { border-color: var(--accent); color: var(--accent); }
 
+/* Anordnung */
+.arrange { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
+.zone { border: 1.5px dashed var(--line); border-radius: 12px; padding: 6px; min-height: 52px; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; position: relative; transition: border-color .15s, background .15s; }
+.zone::before { content: attr(data-label); position: absolute; top: -9px; left: 10px; padding: 0 6px; background: var(--panel); font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.zone.over { border-color: var(--accent); background: var(--accent-soft); }
+.zone .empty { color: var(--muted); font-size: 12px; align-self: center; padding: 4px 6px; }
+.pchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: 10px; background: var(--bg2); border: 1px solid var(--line); cursor: grab; font-size: 12px; font-weight: 600; max-width: 100%; user-select: none; }
+.pchip:active { cursor: grabbing; }
+.pchip .ic { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: var(--panel); font-size: 12px; flex: none; }
+.pchip span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+.pchip.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent); }
+.pchip.dragging { opacity: .35; }
+.insert-mark { width: 3px; align-self: stretch; border-radius: 2px; background: var(--accent); }
+@media (max-width: 700px) { .arrange { grid-template-columns: 1fr; } }
+/* Verlauf */
+.hist { display: flex; flex-direction: column; gap: 8px; }
+.hitem { border: 1px solid var(--line); border-radius: 12px; padding: 9px; display: flex; flex-direction: column; gap: 7px; }
+.hitem .pic { height: 40px; border-radius: 6px; background: #fff; border: 1px solid #eee; display: grid; place-items: center; overflow: hidden; }
+.hitem .pic img { max-height: 34px; max-width: 100%; image-rendering: pixelated; }
+.hitem .meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.hitem .meta b { color: var(--ink); font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tpl { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
 .tpl span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 16%, transparent); border: 3px dashed var(--accent); display: none; place-items: center; font-size: 22px; font-weight: 700; z-index: 50; pointer-events: none; color: var(--accent); }
@@ -189,6 +210,7 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
     <button data-tab="serie">Serie<span class="badge" id="serie-badge" hidden></span></button>
     <button data-tab="layout">Layout</button>
     <button data-tab="druck">Druck</button>
+    <button data-tab="verlauf">Verlauf</button>
     <button data-tab="vorlagen">Vorlagen</button>
   </nav>
 
@@ -250,10 +272,12 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
       <button class="btn small" data-len="75">75 mm</button><button class="btn small" data-len="100">100 mm</button>
     </div>
     <div class="row">
-      <label class="field"><span class="lbl">Länge in mm (0 = automatisch)</span><input type="number" data-k="length_mm" min="0" max="1000" step="1"></label>
+      <label class="field"><span class="lbl">Gesamtlänge in mm (0 = automatisch)</span><input type="number" data-k="length_mm" min="0" max="1000" step="1"></label>
       <label class="field"><span class="lbl">Inhalt ausrichten</span>
         <select data-k="align"><option value="left">links</option><option value="center">mittig</option><option value="right">rechts</option></select></label>
     </div>
+    <div class="hint">Das ist die Länge des fertigen, abgeschnittenen Etiketts – Rand vor und nach dem Druck ist schon eingerechnet.
+      Weicht dein Ausdruck ab: Tab <b>Druck → Längenkorrektur</b>.</div>
     <h3>Abstände</h3>
     <div class="row">
       <label class="field"><span class="lbl">Zwischen Elementen (mm)</span><input type="number" data-k="gap_mm" min="0" max="50" step="0.5"></label>
@@ -284,10 +308,26 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
       <label class="field"><span class="lbl">Kopien je Etikett</span><input type="number" data-k="copies" min="1" max="99" step="1"></label>
     </div>
     <label class="check"><input type="checkbox" data-k="chain"> Serie als ein Auftrag (spart Band zwischen den Etiketten)</label>
-    <div class="row" style="align-items:center">
-      <label class="check"><input type="checkbox" data-k="flip"> Druck um 180° drehen</label>
-      <button class="btn small" id="flipdefault">als Standard merken</button>
+    <h3>Drucker-Einstellungen <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">· gelten für alle Etiketten</span></h3>
+    <label class="check"><input type="checkbox" data-set="mirror"> Druck spiegeln (nur falls er seitenverkehrt herauskommt)</label>
+    <div class="row">
+      <label class="field"><span class="lbl">Längenkorrektur (mm)</span><input type="number" data-set="length_offset_mm" step="0.5" min="-50" max="50"></label>
     </div>
+    <div class="hint">Einmal einmessen: Etikett mit fester Länge drucken und nachmessen.</div>
+    <div class="row">
+      <label class="field"><span class="lbl">eingestellt (mm)</span><input type="number" id="cal-set" step="0.5" placeholder="z. B. 90"></label>
+      <label class="field"><span class="lbl">gemessen (mm)</span><input type="number" id="cal-meas" step="0.5" placeholder="z. B. 92"></label>
+      <button class="btn soft" id="cal-apply">Übernehmen</button>
+    </div>
+  </section>
+
+  <!-- VERLAUF -->
+  <section class="pane" data-pane="verlauf">
+    <div class="row">
+      <label class="field"><span class="lbl">Jeder Druck wird hier automatisch gespeichert</span><input type="text" id="hist-q" placeholder="Suchen, z. B. 00878"></label>
+      <button class="btn small" id="hist-reload" title="neu laden">↻</button>
+    </div>
+    <div class="hist" id="hist"></div>
   </section>
 
   <!-- VORLAGEN -->
@@ -311,6 +351,11 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
       </div>
     </div>
     <div class="stage" id="stage"><div class="hint">Vorschau wird erstellt …</div></div>
+    <div class="arrange" id="arrange">
+      <div class="zone" data-zone="left" data-label="Links"></div>
+      <div class="zone" data-zone="center" data-label="Mitte"></div>
+      <div class="zone" data-zone="right" data-label="Rechts"></div>
+    </div>
     <div class="hero-foot">
       <div class="stats" id="stats"></div>
       <span class="grow"></span>
@@ -398,6 +443,14 @@ async function api(path, body) {
   return r.json();
 }
 const items = () => editing === null ? state.items : state.series.rows[editing].items;
+const posOf = it => it.position === "left" || it.position === "right" ? it.position : (!it.position && it.type === "number" ? "left" : "center");
+const POSNAME = { left: "links", center: "Mitte", right: "rechts" };
+function normalize(list) {
+  // Reihenfolge im Array = Reihenfolge auf dem Etikett: links, Mitte, rechts
+  const order = { left: 0, center: 1, right: 2 };
+  const sorted = list.map((it, i) => [it, i]).sort((a, b) => order[posOf(a[0])] - order[posOf(b[0])] || a[1] - b[1]).map(x => x[0]);
+  list.splice(0, list.length, ...sorted);
+}
 
 // ---------- Tabs ----------
 function showTab(t) {
@@ -470,7 +523,7 @@ const TEXTSTYLE = () => `<div class="row">${f.sel("font", "Schrift", fontOpts())
 
 function summary(it) {
   const t = { number: it.text, text: it.text, qr: it.data, barcode: it.data, symbol: it.emoji || it.key, spacer: `${it.width_mm} mm`, image: it.src ? "" : "leer" }[it.type];
-  const pos = it.type === "number" ? ` · ${it.position === "right" ? "rechts" : it.position === "flow" ? "im Fluss" : "links"}` : "";
+  const pos = ` · ${POSNAME[posOf(it)]}`;
   return t ? ` <span>${esc(String(t).split("\n")[0].slice(0, 26))}${pos}</span>` : "";
 }
 function itemHTML(it, i) {
@@ -478,8 +531,6 @@ function itemHTML(it, i) {
   let body = "";
   if (it.type === "number") {
     body = `${f.input("text", "Inhalt – {n} wird durch die Seriennummer ersetzt", "{n}")}
-      <div class="row">${f.sel("position", "Position", [["left", "links am Rand"], ["right", "rechts am Rand"], ["flow", "zwischen den Elementen"]])}</div>
-      <div class="row" style="align-items:center">${f.check("divider", "Trennlinie zum Rest")}<span data-when="divider=true" style="flex:1;display:flex">${f.range("divider_px", "Linienstärke", 1, 8, 1, " Pkt")}</span></div>
       ${TEXTSTYLE()}`;
   } else if (it.type === "text") {
     body = `${f.text("text", "Text (Enter = neue Zeile)")}${TEXTSTYLE()}
@@ -493,19 +544,23 @@ function itemHTML(it, i) {
   } else if (it.type === "qr") {
     body = `${f.text("data", "Inhalt – {n} = Seriennummer (nur die Zahl)", "{n}")}
       <div class="row"><button class="btn small" data-qrn>Nur Nummer {n}</button><button class="btn small" data-wifi>WLAN-Zugang…</button></div>
-      <div class="row">${f.sel("ecc", "Fehlerkorrektur", [["L", "niedrig (kleiner)"], ["M", "mittel"], ["Q", "hoch"], ["H", "sehr hoch"]])}${f.range("size_pct", "Größe", 30, 100, 1, " %")}</div>`;
+      <div class="row">${f.sel("ecc", "Fehlerkorrektur", [["L", "niedrig (kleiner)"], ["M", "mittel"], ["Q", "hoch"], ["H", "sehr hoch"]])}${f.range("size_pct", "Größe", 30, 100, 1, " %")}</div>
+      <div class="row">${VALIGN}</div>`;
   } else if (it.type === "barcode") {
     body = `<div class="row">${f.sel("kind", "Typ", [["code128", "Code 128 (Text & Zahlen)"], ["code39", "Code 39"], ["ean13", "EAN-13 (12 Ziffern)"], ["ean8", "EAN-8 (7 Ziffern)"], ["upca", "UPC-A (11 Ziffern)"], ["isbn13", "ISBN-13"]])}</div>
       ${f.text("data", "Inhalt", "{n}")}
       <div class="row">${f.num("module_px", "Strichbreite (Pkt)", 1, 6, 1)}${f.range("size_pct", "Höhe", 30, 100, 1, " %")}</div>
-      ${f.check("show_text", "Klartext darunter")}`;
+      <div class="row" style="align-items:flex-end">${VALIGN}${f.check("show_text", "Klartext darunter")}</div>`;
   } else if (it.type === "spacer") {
     body = `<div class="row">${f.num("width_mm", "Breite (mm)", 0, 200, 0.5)}</div>`;
   }
+  const pos = posOf(it);
+  const posBlock = `<div class="row" style="align-items:center"><span class="lbl">Position</span>
+      <div class="seg" data-posseg>${["left", "center", "right"].map(p => `<button data-pos="${p}" class="${pos === p ? "on" : ""}">${{ left: "Links", center: "Mitte", right: "Rechts" }[p]}</button>`).join("")}</div></div>
+    ${pos !== "center" ? `<div class="row" style="align-items:center">${f.check("divider", "Trennlinie zur Mitte")}<span data-when="divider=true" style="flex:1;display:flex">${f.range("divider_px", "Linienstärke", 1, 8, 1, " Pkt")}</span></div>` : ""}`;
+  body = posBlock + body;
   return `<div class="item ${i === selected ? "sel" : ""} ${i === openItem ? "open" : ""}" data-idx="${i}">
     <div class="item-head" data-toggle><span class="ic">${ICONS[it.type] || "?"}</span><b>${NAMES[it.type] || it.type}${summary(it)}</b>
-      <button class="btn ghost small" data-act="up" ${i === 0 ? "disabled" : ""} title="nach links">←</button>
-      <button class="btn ghost small" data-act="down" ${i === n - 1 ? "disabled" : ""} title="nach rechts">→</button>
       <button class="btn ghost small" data-act="dup" title="duplizieren">⧉</button>
       <button class="btn ghost small" data-act="del" title="entfernen">✕</button></div>
     <div class="item-body">${body}</div></div>`;
@@ -531,6 +586,8 @@ function renderContext() {
 function renderItems() {
   renderContext();
   const list = items(), box = $("#items");
+  normalize(list);
+  renderArrange();
   box.innerHTML = list.map(itemHTML).join("") || `<div class="hint">Noch leer – oben ein Element hinzufügen oder Schnellstart wählen.</div>`;
   $$(".item", box).forEach(card => {
     const i = +card.dataset.idx, it = list[i];
@@ -542,6 +599,7 @@ function renderItems() {
         if (el.type === "range" || el.type === "number" || k === "rotate") v = v === "" ? 0 : +v;
         it[k] = v; syncWhen(card, it);
         $(".item-head b", card).innerHTML = `${NAMES[it.type]}${summary(it)}`;
+        if (["text", "data", "emoji"].includes(k)) renderArrange();
         if (it.type === "symbol" && k === "emoji") await updateSymbol(it);
         changed();
       });
@@ -561,6 +619,10 @@ function renderItems() {
       selected = openItem = Math.max(0, Math.min(list.length - 1, a === "up" ? i - 1 : a === "down" || a === "dup" ? i + 1 : i));
       renderItems(); changed();
     }));
+    $$("[data-pos]", card).forEach(b => b.addEventListener("click", e => {
+      e.stopPropagation(); it.position = b.dataset.pos; normalize(list);
+      selected = openItem = list.indexOf(it); renderItems(); changed();
+    }));
     $$("[data-sym]", card).forEach(b => b.addEventListener("click", async () => { it.key = b.dataset.sym; it.emoji = ""; await updateSymbol(it); renderItems(); changed(); }));
     const file = $("[data-file]", card);
     if (file) file.addEventListener("change", async () => { if (file.files[0]) { it.src = await fileToDataURL(file.files[0]); renderItems(); changed(); } });
@@ -576,6 +638,64 @@ function renderItems() {
     });
   });
 }
+
+// ---------- Anordnung (Ziehen) ----------
+let dragIdx = null;
+function chipLabel(it) {
+  const t = { number: it.text, text: it.text, qr: it.data, barcode: it.data, symbol: it.emoji || it.key, spacer: `${it.width_mm} mm`, image: "" }[it.type];
+  const short = String(t || "").split("\n")[0].slice(0, 18);
+  return `${NAMES[it.type]}${short ? ": " + esc(short) : ""}`;
+}
+function renderArrange() {
+  const list = items();
+  $$("#arrange .zone").forEach(z => {
+    const zone = z.dataset.zone;
+    const idx = list.map((it, i) => i).filter(i => posOf(list[i]) === zone);
+    z.innerHTML = idx.length ? idx.map(i => `<div class="pchip ${i === selected ? "sel" : ""}" draggable="true" data-ci="${i}" title="ziehen zum Verschieben, klicken zum Bearbeiten"><span class="ic">${ICONS[list[i].type]}</span><span class="t">${chipLabel(list[i])}</span></div>`).join("")
+      : `<span class="empty">hierher ziehen</span>`;
+  });
+  $$("#arrange .pchip").forEach(c => {
+    c.addEventListener("dragstart", e => { dragIdx = +c.dataset.ci; c.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", c.dataset.ci); });
+    c.addEventListener("dragend", () => { dragIdx = null; c.classList.remove("dragging"); $$(".insert-mark").forEach(m => m.remove()); $$(".zone").forEach(z => z.classList.remove("over")); });
+    c.addEventListener("click", () => { const i = +c.dataset.ci; selected = openItem = i; showTab("inhalt"); renderItems(); const card = $(`.item[data-idx="${i}"]`); if (card) card.scrollIntoView({ block: "nearest", behavior: "smooth" }); });
+  });
+}
+function insertIndex(zone, x) {
+  const chips = $$(".pchip:not(.dragging)", zone);
+  for (let k = 0; k < chips.length; k++) {
+    const r = chips[k].getBoundingClientRect();
+    if (x < r.left + r.width / 2) return { before: chips[k], k };
+  }
+  return { before: null, k: chips.length };
+}
+$$("#arrange .zone").forEach(z => {
+  z.addEventListener("dragover", e => {
+    if (dragIdx === null) return;
+    e.preventDefault(); z.classList.add("over");
+    $$(".insert-mark").forEach(m => m.remove());
+    const { before } = insertIndex(z, e.clientX);
+    const mark = document.createElement("span"); mark.className = "insert-mark";
+    const empty = $(".empty", z); if (empty) empty.remove();
+    before ? z.insertBefore(mark, before) : z.appendChild(mark);
+  });
+  z.addEventListener("dragleave", e => { if (!z.contains(e.relatedTarget)) { z.classList.remove("over"); $$(".insert-mark", z).forEach(m => m.remove()); } });
+  z.addEventListener("drop", e => {
+    e.preventDefault(); if (dragIdx === null) return;
+    const list = items(), it = list[dragIdx], zone = z.dataset.zone;
+    const { before } = insertIndex(z, e.clientX);
+    const target = before ? list[+before.dataset.ci] : null;
+    list.splice(dragIdx, 1);
+    it.position = zone;
+    if (target) list.splice(list.indexOf(target), 0, it);
+    else { // ans Ende dieser Zone
+      const lastInZone = list.map((x, i) => [x, i]).filter(([x]) => posOf(x) === zone).pop();
+      const at = lastInZone ? lastInZone[1] + 1 : (zone === "left" ? 0 : list.length);
+      list.splice(at, 0, it);
+    }
+    normalize(list); selected = openItem = list.indexOf(it); dragIdx = null;
+    renderItems(); changed();
+  });
+});
 
 // ---------- Serie ----------
 function genValues(s) {
@@ -761,7 +881,7 @@ function drawPreview() {
       if (a[i] < 128) { a[i] = ink[0]; a[i + 1] = ink[1]; a[i + 2] = ink[2]; a[i + 3] = 255; } else a[i + 3] = 0;
     }
     g.putImageData(d, 0, 0);
-    const marginPx = Math.max(14, Math.round(state.margin_mm * 180 / 25.4));
+    const marginPx = p.margin_px || 14;
     const totalW = p.width_px + 2 * marginPx, stage = $("#stage"), avail = stage.clientWidth - 60;
     const z = $("#zoom .on").dataset.z;
     const k = z === "fit" ? Math.max(0.2, Math.min(6, avail / totalW, 230 / p.tape_px)) : +z;
@@ -817,7 +937,8 @@ async function pollStatus() {
   }
 }
 $("#refresh").addEventListener("click", async () => { showStatus({ known: false }); showStatus(await api("/api/status?refresh=1")); refreshPreview(); });
-$("#print").addEventListener("click", async () => {
+$("#print").addEventListener("click", () => doPrint());
+async function doPrint() {
   const btn = $("#print"), label = btn.innerHTML;
   btn.disabled = true; btn.innerHTML = "⏳ Drucke …";
   showMessages([["warn", "Verbinde und drucke – das dauert ein paar Sekunden …"]], "print");
@@ -827,11 +948,60 @@ $("#print").addEventListener("click", async () => {
     showMessages(r.ok ? [["ok", "✓ " + r.messages.join(" · ")]] : [["err", "Nicht gedruckt: " + r.error]], "print");
   } catch (e) { showMessages([["err", "Verbindung zum Studio verloren: " + e]], "print"); }
   btn.disabled = false; btn.innerHTML = label;
+  if ($('#tabs [data-tab="verlauf"]').classList.contains("on")) loadHistory();
+}
+// ---------- Drucker-Einstellungen ----------
+function syncSettings() {
+  const st = CFG.settings || {};
+  $$("[data-set]").forEach(el => { if (el.type === "checkbox") el.checked = !!st[el.dataset.set]; else if (document.activeElement !== el) el.value = st[el.dataset.set] ?? 0; });
+}
+async function saveSetting(patch) {
+  CFG.settings = await api("/api/settings", patch); syncSettings(); refreshPreview();
+}
+$$("[data-set]").forEach(el => el.addEventListener("change", () => {
+  saveSetting({ [el.dataset.set]: el.type === "checkbox" ? el.checked : +el.value || 0 });
+}));
+$("#cal-apply").addEventListener("click", () => {
+  const set = +$("#cal-set").value, meas = +$("#cal-meas").value;
+  if (!set || !meas) return alert("Bitte eingestellte und gemessene Länge eintragen.");
+  const off = Math.round(((CFG.settings.length_offset_mm || 0) + (meas - set)) * 10) / 10;
+  saveSetting({ length_offset_mm: off });
+  showMessages([["ok", `Längenkorrektur gespeichert: ${String(off).replace(".", ",")} mm. Nächster Druck mit ${String(set).replace(".", ",")} mm sollte passen.`]], "print");
+  $("#cal-meas").value = "";
 });
-$("#flipdefault").addEventListener("click", async () => {
-  await api("/api/flip-default", { flip: !!state.flip });
-  showMessages([["ok", `Gemerkt: Drehen ist ab jetzt standardmäßig ${state.flip ? "an" : "aus"}.`]], "print");
-});
+
+// ---------- Verlauf ----------
+let HIST = [];
+async function loadHistory() { HIST = await api("/api/history"); renderHistory(); }
+function renderHistory() {
+  const q = $("#hist-q").value.trim().toLowerCase();
+  const list = HIST.filter(h => !q || (h.title + " " + h.time).toLowerCase().includes(q));
+  $("#hist").innerHTML = list.length ? list.map(h => `<div class="hitem">
+      <div class="pic"><img src="${h.thumb}" alt=""></div>
+      <div class="meta"><b title="${esc(h.title)}">${esc(h.title)}</b></div>
+      <div class="meta"><span>${esc(h.time)} · ${h.count} Etikett${h.count === 1 ? "" : "en"} · ${String(h.tape_mm).replace(".", ",")} mm</span><span class="grow"></span>
+        <button class="btn small soft" data-hopen="${h.id}">Öffnen</button>
+        <button class="btn small" data-hprint="${h.id}">Nochmal drucken</button>
+        <button class="btn ghost small" data-hdel="${h.id}" title="aus Verlauf löschen">✕</button></div></div>`).join("")
+    : `<div class="hint">${HIST.length ? "Nichts gefunden." : "Noch nichts gedruckt – jeder Druck landet automatisch hier."}</div>`;
+  $$("[data-hopen]").forEach(b => b.addEventListener("click", async () => {
+    const e = await api("/api/history/item?id=" + b.dataset.hopen); if (e.error) return alert(e.error);
+    loadSpec(e.spec); showTab("inhalt");
+    showMessages([["ok", `Aus dem Verlauf geöffnet: ${e.title} (${e.time})`]], "print");
+  }));
+  $$("[data-hprint]").forEach(b => b.addEventListener("click", async () => {
+    const e = await api("/api/history/item?id=" + b.dataset.hprint); if (e.error) return alert(e.error);
+    if (!confirm(`„${e.title}“ nochmal drucken (${e.count} Etikett${e.count === 1 ? "" : "en"})?`)) return;
+    loadSpec(e.spec); doPrint();
+  }));
+  $$("[data-hdel]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm("Diesen Eintrag aus dem Verlauf löschen?")) return;
+    await api("/api/history/delete", { id: b.dataset.hdel }); loadHistory();
+  }));
+}
+$("#hist-q").addEventListener("input", renderHistory);
+$("#hist-reload").addEventListener("click", loadHistory);
+$$('#tabs [data-tab="verlauf"]').forEach(b => b.addEventListener("click", loadHistory));
 $("#quit").addEventListener("click", async () => {
   if (!confirm("Etiketten-Studio beenden?")) return;
   await api("/api/quit", {}); document.body.innerHTML = `<div style="padding:60px;font-size:18px;text-align:center">Studio beendet – dieses Fenster kann geschlossen werden.</div>`;
@@ -859,7 +1029,7 @@ $("#tplsave").addEventListener("click", async () => {
 });
 $("#reset").addEventListener("click", () => {
   if (!confirm("Aktuelles Etikett verwerfen?")) return;
-  loadSpec(Object.assign(clone(CFG.defaults), { flip: CFG.flip_default, items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
+  loadSpec(Object.assign(clone(CFG.defaults), { items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
 });
 function fillItems(list) { return (list || []).map(it => Object.assign(NEW[it.type] ? NEW[it.type]() : {}, it)); }
 function loadSpec(spec) {
@@ -873,6 +1043,7 @@ function loadSpec(spec) {
     s.series.rows = vals.map(v => ({ value: v, items: null }));
     if (s.series.mode !== "none") s.series.mode = s.series.rows.length ? "on" : "none";
   }
+  delete s.flip; // Ausrichtung ist jetzt eine Drucker-Einstellung
   s.items = fillItems(s.items);
   s.series.rows = s.series.rows.map(r => ({ value: String(r.value ?? ""), items: r.items ? fillItems(r.items) : null }));
   state = s; selected = openItem = 0; showIdx = 0; editing = null;
@@ -907,9 +1078,10 @@ $$("[data-add]").forEach(b => b.addEventListener("click", async () => {
   CFG = await api("/api/config");
   bindGlobals();
   const saved = store.get("ptouch-studio-v2") || store.get("ptouch-studio-spec");
-  loadSpec(saved || Object.assign(clone(CFG.defaults), { flip: CFG.flip_default, items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
+  loadSpec(saved || Object.assign(clone(CFG.defaults), { items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
   for (const it of state.items) if (it.type === "symbol" && !it.src) await updateSymbol(it);
   renderTemplates(CFG.templates);
+  syncSettings();
   showStatus(CFG.status);
   if (!CFG.status.known) pollStatus();
 })();

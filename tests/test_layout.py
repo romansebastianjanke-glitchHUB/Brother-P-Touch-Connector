@@ -43,7 +43,8 @@ def test_all_items_all_tapes():
 
 def test_fixed_length_and_invert():
     img, w = layout.render_label(full_spec(length_mm=200, invert=True), 24)
-    assert abs(img.width - int(200 * layout.MM)) <= 1
+    # Gesamtlänge = Rand + Inhalt + Rand
+    assert abs(layout.total_length_mm(full_spec(), img.width) - 200) < 0.3
     assert img.getpixel((1, 1)) == 0  # invertierter Hintergrund
     img, w = layout.render_label(full_spec(length_mm=5), 24)
     assert any("abgeschnitten" in m for m in w)
@@ -118,7 +119,7 @@ def test_number_left_with_divider_fixed_length():
     imgs, warnings, values = layout.render_all(spec, 24)
     assert values == ["04", "05"] and not warnings
     img = imgs[0]
-    assert abs(img.width - int(90 * layout.MM)) <= 1
+    assert abs(layout.total_length_mm(spec, img.width) - 90) < 0.3
     # Trennlinie: eine Spalte, die über die ganze Höhe schwarz ist
     cols = [x for x in range(img.width) if all(img.getpixel((x, y)) == 0 for y in range(img.height))]
     assert cols and cols[0] < img.width // 2
@@ -131,3 +132,32 @@ def test_number_left_with_divider_fixed_length():
 def test_legacy_series_still_works():
     spec = {"items": [{"type": "text", "text": "{n}"}], "series": {"mode": "list", "list": "a\nb"}}
     assert layout.render_all(spec, 12)[2] == ["a", "b"]
+
+
+def test_length_offset_correction():
+    spec = {"length_mm": 60, "margin_mm": 2, "_length_offset_mm": 3, "items": [{"type": "text", "text": "A"}]}
+    img, w = layout.render_label(spec, 12)
+    assert not w
+    assert abs(layout.total_length_mm(spec, img.width) - 60) < 0.3
+    plain = dict(spec, _length_offset_mm=0)
+    assert layout.render_label(plain, 12)[0].width - img.width == round(3 * layout.MM)
+
+
+def test_too_short_length_warns():
+    img, w = layout.render_label({"length_mm": 3, "items": [{"type": "text", "text": "A"}]}, 12)
+    assert any("zu kurz" in m for m in w)
+
+
+def test_qr_right_position_with_fixed_length():
+    spec = {"length_mm": 80, "items": [{"type": "text", "text": "AB"}, {"type": "qr", "data": "1", "position": "right"}]}
+    img, w = layout.render_label(spec, 24)
+    ink_right = [x for x in range(img.width) if any(img.getpixel((x, y)) == 0 for y in range(img.height))]
+    assert ink_right[-1] > img.width - 20
+
+
+def test_autofit_keeps_fixed_length():
+    spec = {"length_mm": 40, "items": [{"type": "number", "position": "left", "bold": True},
+                                        {"type": "qr", "data": "{n}", "position": "right"}]}
+    img, w = layout.render_label(spec, 24, "00878")
+    assert abs(layout.total_length_mm(spec, img.width) - 40) < 0.3
+    assert any("verkleinert" in m for m in w) and not any("abgeschnitten" in m for m in w)

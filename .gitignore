@@ -16,3 +16,6 @@ letzter-lauf.txt
 studio-log.txt
 vorlagen/
 *.alt/
+verlauf/
+.einstellungen.json
+.mirror

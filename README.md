@@ -20,7 +20,12 @@ Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
 - **Serien:** fortlaufende Nummern oder eingefügte Liste, als bearbeitbare Liste unter der Vorschau –
   jeder Wert änderbar, jedes Etikett auf Wunsch komplett einzeln gestaltbar (Platzhalter `{n}`, `{datum}`)
 - **Bandfarbe & Schriftfarbe** für die Vorschau wählbar (oder automatisch vom Drucker)
-- **Druck:** Kopien, Schnitt/Halbschnitt, Rand, Serie als ein Auftrag, 180°-Drehung
+- **Druck:** Kopien, Schnitt/Halbschnitt, Rand, Serie als ein Auftrag; Spiegeln als Geräte-Einstellung
+- **Anordnung per Ziehen:** jedes Element in die Bereiche Links / Mitte / Rechts ziehen
+  (links/rechts bleiben bei fester Länge am Rand, optional mit Trennlinie)
+- **Etikettlänge = echte Gesamtlänge** inkl. Rand; passt der Inhalt nicht, wird er automatisch verkleinert.
+  Einmalige **Längenkorrektur** zum Einmessen (Tab Druck)
+- **Verlauf:** jeder Druck wird gespeichert (Ordner `verlauf/`) – öffnen, nochmal drucken, suchen
 - **Vorlagen** speichern und laden (Ordner `vorlagen/`)
 
 Das Terminal-Fenster muss offen bleiben, solange das Studio läuft.

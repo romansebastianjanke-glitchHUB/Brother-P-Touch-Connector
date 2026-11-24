@@ -61,8 +61,10 @@ fi
 EXTRA+=(--transport "$TRANSPORT")
 
 # 5) Drucken
+# alte Einstellung ".flip" glich einen Fehler aus, der jetzt im Programm behoben ist
+rm -f .flip
 FLIP=()
-[ -f .flip ] && FLIP=(--flip)
+[ -f .mirror ] && FLIP=(--mirror)
 while true; do
     echo
     echo "-----------------------------------------------"
@@ -79,7 +81,7 @@ while true; do
         echo "(Antwort: $OK)"
         case "$OK" in
             n|N)
-                if [ ${#FLIP[@]} -gt 0 ]; then FLIP=(); rm -f .flip; else FLIP=(--flip); touch .flip; fi
+                if [ ${#FLIP[@]} -gt 0 ]; then FLIP=(); rm -f .mirror; else FLIP=(--mirror); touch .mirror; fi
                 echo "Gemerkt – Ausrichtung geändert. Bitte einmal neu testen." ;;
             j|J) touch .ausrichtung-geprueft ;;
             *) echo "Notiert. Bitte 'letzter-lauf.txt' an Claude schicken." ;;
