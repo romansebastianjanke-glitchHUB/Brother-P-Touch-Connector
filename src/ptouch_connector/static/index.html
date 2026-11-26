@@ -255,6 +255,15 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
         <input type="text" id="cols" placeholder="z. B. name, nr, raum"></label>
       <div class="hint" id="col-hint"></div>
       <label class="check" style="margin-top:8px"><input type="checkbox" id="uniform"> Einheitliche Schriftgröße für alle Etiketten</label>
+      <h3 style="margin-top:16px">Liste als PDF (A4 hoch)</h3>
+      <div class="row" style="margin-top:8px">
+        <label class="field"><span class="lbl">Titel</span><input type="text" id="pdf-title" placeholder="Transponder-Übersicht"></label>
+        <label class="field" style="flex:0 0 70px;min-width:70px"><span class="lbl">Farbe</span><input type="color" id="pdf-color" value="#c0101e" style="width:100%;height:36px;border:1px solid var(--line);border-radius:10px;background:var(--panel)"></label>
+      </div>
+      <label class="field" style="margin-top:8px"><span class="lbl">Untertitel</span><input type="text" id="pdf-sub" placeholder="Schlüsselkasten"></label>
+      <label class="check" style="margin-top:6px"><input type="checkbox" id="pdf-onlysel"> nur ausgewählte Zeilen</label>
+      <div class="row" style="margin-top:8px"><button class="btn soft" id="pdf-make">📄 Liste öffnen &amp; als PDF sichern</button></div>
+      <div class="hint">Öffnet die Liste in einem neuen Fenster mit Druckdialog – dort „Als PDF sichern“ wählen.</div>
       <h3 style="margin-top:16px">Nummern erzeugen</h3>
       <div class="row" style="margin-top:8px">
         <label class="field"><span class="lbl">Von</span><input type="number" data-s="start" step="1"></label>
@@ -319,6 +328,7 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
     </div>
     <label class="check"><input type="checkbox" data-k="chain"> Serie als ein Auftrag (spart Band zwischen den Etiketten)</label>
     <h3>Drucker-Einstellungen <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">· gelten für alle Etiketten</span></h3>
+    <label class="field"><span class="lbl">Standardschrift (für alle Elemente mit „Standard“)</span><select data-set="default_font" id="deffont"></select></label>
     <label class="check"><input type="checkbox" data-set="mirror"> Druck spiegeln (nur falls er seitenverkehrt herauskommt)</label>
     <div class="row">
       <label class="field"><span class="lbl">Längenkorrektur (mm)</span><input type="number" data-set="length_offset_mm" step="0.5" min="-50" max="50"></label>
@@ -443,7 +453,7 @@ const store = {
 };
 const NEW = {
   number: () => ({ type: "number", text: "{n}", position: "left", divider: false, divider_px: 2, font: "", bold: true, italic: false, underline: false, size_mode: "auto", size_pct: 100, size_px: 40, align: "center", line_spacing: 10, valign: "center" }),
-  text: () => ({ type: "text", text: "Text", font: "", size_mode: "auto", size_pct: 100, size_px: 40, bold: false, italic: false, underline: false, align: "center", line_spacing: 10, valign: "center" }),
+  text: () => ({ type: "text", text: "Text", font: "", size_mode: "auto", size_pct: 100, size_px: 40, bold: false, italic: false, underline: false, align: "center", line_spacing: 35, valign: "center" }),
   image: () => ({ type: "image", src: "", size_pct: 100, mode: "dither", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
   symbol: () => ({ type: "symbol", key: "blitz", emoji: "", src: "", size_pct: 85, mode: "threshold", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
   qr: () => ({ type: "qr", data: "{n}", ecc: "M", size_pct: 100, valign: "center" }),
@@ -458,6 +468,19 @@ async function api(path, body) {
   return r.json();
 }
 const items = () => editing === null ? state.items : state.series.rows[editing].items;
+const CONTENT_KEYS = new Set(["type", "text", "data", "src", "emoji", "key", "_uid"]);
+function customRows() { return (state.series.rows || []).filter(r => r.items); }
+// Einstellung (nicht Inhalt) eines Elements auf die gleichen Elemente aller Etiketten übertragen
+function propagate(idx, keys, srcItem) {
+  const targets = [state.items, ...customRows().map(r => r.items)];
+  let n = 0;
+  targets.forEach(list => {
+    const t = list && list[idx];
+    if (!t || t === srcItem || t.type !== srcItem.type) return;
+    keys.forEach(k => { if (!CONTENT_KEYS.has(k)) t[k] = clone(srcItem[k]); }); n++;
+  });
+  return n;
+}
 const posOf = it => it.position === "left" || it.position === "right" ? it.position : (!it.position && it.type === "number" ? "left" : "center");
 const POSNAME = { left: "links", center: "Mitte", right: "rechts" };
 function normalize(list) {
@@ -529,7 +552,7 @@ const IMGOPTS = `<div class="row">${f.range("size_pct", "Größe", 10, 100, 1, "
   <div class="row">${f.sel("mode", "Umwandlung", [["dither", "Graustufen rastern (Fotos)"], ["threshold", "Schwelle (Logos, Grafiken)"]])}${VALIGN}</div>
   <div class="row">${f.range("threshold", "Schwelle", 1, 254, 1)}${f.range("contrast", "Kontrast", -80, 200, 5)}</div>
   <div class="row">${f.check("invert", "invertieren")}${f.check("autocrop", "weißen Rand entfernen")}</div>`;
-const fontOpts = () => [["", "Standard (Helvetica)"], ...CFG.fonts.map(x => [x, x])];
+const fontOpts = () => [["", `Standard (${(CFG.settings && CFG.settings.default_font) || "Helvetica"})`], ...CFG.fonts.map(x => [x, x])];
 const TEXTSTYLE = () => `<div class="row">${f.sel("font", "Schrift", fontOpts())}</div>
   <div class="row">${f.sel("size_mode", "Größe", [["auto", "an Bandhöhe anpassen"], ["fixed", "feste Größe (Punkte)"]])}
     <span data-when="size_mode=auto" style="flex:1;min-width:110px;display:flex">${f.range("size_pct", "Höhe", 20, 100, 1, " %")}</span>
@@ -549,7 +572,7 @@ function itemHTML(it, i) {
       ${TEXTSTYLE()}`;
   } else if (it.type === "text") {
     body = `${f.text("text", "Text (Enter = neue Zeile)")}${TEXTSTYLE()}
-      <div class="row">${f.sel("align", "Zeilen ausrichten", [["left", "links"], ["center", "mittig"], ["right", "rechts"]])}${f.range("line_spacing", "Zeilenabstand", 0, 60, 1, " %")}</div>`;
+      <div class="row">${f.sel("align", "Zeilen ausrichten", [["left", "links"], ["center", "mittig"], ["right", "rechts"]])}${f.range("line_spacing", "Zeilenabstand", 0, 150, 1, " %")}</div>`;
   } else if (it.type === "image") {
     body = `<div class="row" style="align-items:center">${it.src ? `<img class="thumb" src="${it.src}">` : `<span class="hint">Noch kein Bild – ⌘V oder Datei wählen</span>`}
       <label class="btn small">Datei wählen…<input type="file" accept="image/*" data-file hidden></label></div>${IMGOPTS}`;
@@ -576,6 +599,7 @@ function itemHTML(it, i) {
   body = posBlock + body;
   return `<div class="item ${i === selected ? "sel" : ""} ${i === openItem ? "open" : ""}" data-idx="${i}">
     <div class="item-head" data-toggle><span class="ic">${ICONS[it.type] || "?"}</span><b>${NAMES[it.type] || it.type}${summary(it)}</b>
+      ${editing !== null || customRows().length ? `<button class="btn ghost small" data-act="all" title="Einstellungen dieses Elements (Schrift, Größe, Position …) für alle Etiketten der Serie übernehmen – Texte bleiben">⇉ alle</button>` : ""}
       <button class="btn ghost small" data-act="dup" title="duplizieren">⧉</button>
       <button class="btn ghost small" data-act="del" title="entfernen">✕</button></div>
     <div class="item-body">${body}</div></div>`;
@@ -587,7 +611,11 @@ function syncWhen(card, it) {
 function renderContext() {
   const box = $("#context");
   if (editing === null) {
-    box.innerHTML = state.series.mode !== "none" ? `<div class="context">✎ Vorlage für alle Etiketten der Serie</div>` : "";
+    const nc = customRows().length;
+    box.innerHTML = state.series.mode !== "none" ? `<div class="context">✎ Vorlage für alle Etiketten der Serie
+      ${nc ? `<label class="check" style="width:100%;font-weight:500"><input type="checkbox" id="ctx-prop" ${state.series.propagate ? "checked" : ""}>
+        Änderungen auch auf die ${nc} einzeln gestaltete${nc === 1 ? "" : "n"} Etikett${nc === 1 ? "" : "en"} anwenden</label>` : ""}</div>` : "";
+    const cp = $("#ctx-prop"); if (cp) cp.onchange = () => { state.series.propagate = cp.checked; changed(); };
     $("#quickwrap").hidden = false;
   } else {
     const r = state.series.rows[editing];
@@ -613,6 +641,7 @@ function renderItems() {
         let v = el.type === "checkbox" ? el.checked : el.value;
         if (el.type === "range" || el.type === "number" || k === "rotate") v = v === "" ? 0 : +v;
         it[k] = v; syncWhen(card, it);
+        if (editing === null && state.series.propagate && !CONTENT_KEYS.has(k)) propagate(i, [k], it);
         $(".item-head b", card).innerHTML = `${NAMES[it.type]}${summary(it)}`;
         if (["text", "data", "emoji"].includes(k)) renderArrange();
         if (it.type === "symbol" && k === "emoji") await updateSymbol(it);
@@ -627,6 +656,11 @@ function renderItems() {
     });
     $$("[data-act]", card).forEach(b => b.addEventListener("click", e => {
       e.stopPropagation(); const a = b.dataset.act;
+      if (a === "all") {
+        const n = propagate(i, Object.keys(it), it);
+        showMessages([["ok", n ? `Einstellungen von „${NAMES[it.type]}“ auf ${n} weitere Etikett-Gestaltung${n === 1 ? "" : "en"} übertragen (Texte unverändert).` : "Keine passenden Elemente auf anderen Etiketten gefunden."]], "print");
+        renderSeries(); changed(); return;
+      }
       if (a === "del") list.splice(i, 1);
       if (a === "dup") list.splice(i + 1, 0, clone(it));
       if (a === "up" && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
@@ -805,6 +839,10 @@ function renderSeries() {
   $$("[data-s]").forEach(el => { el.value = state.series[el.dataset.s] ?? ""; });
   if (document.activeElement !== $("#cols")) $("#cols").value = cs.join(", ");
   $("#uniform").checked = !!state.series.uniform;
+  const pdf = state.series.pdf || {};
+  if (document.activeElement !== $("#pdf-title")) $("#pdf-title").value = pdf.title || "";
+  if (document.activeElement !== $("#pdf-sub")) $("#pdf-sub").value = pdf.sub || "";
+  if (pdf.color) $("#pdf-color").value = pdf.color;
   $("#col-hint").innerHTML = `Platzhalter: <code>{n}</code>${cs.map(c => ` <code>{${esc(c)}}</code>`).join("")}`;
   $("#series").hidden = !on;
   const sel = rows.filter(r => r.on !== false).length;
@@ -873,6 +911,64 @@ function updateSeriesPics() {
   $$("#sgrid [data-pic]").forEach(img => { const s = preview.images[+img.dataset.pic]; if (s && img.src !== s) img.src = s; });
 }
 
+// ---------- Liste als PDF ----------
+const COL_TITLES = { n: "Transponder", name: "Bezeichnung", nr: "Nr.", raum: "Raum", zugang: "Zugang" };
+const colTitle = c => COL_TITLES[c] || c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, " ");
+function listHTML(opts) {
+  const cs = cols(), rows = state.series.rows.filter(r => !opts.onlySel || r.on !== false);
+  const today = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const font = (CFG.settings && CFG.settings.default_font) || "";
+  const fam = `"SRHHeadline", "SRH Headline", "${font.replace(/"/g, "")}", "Helvetica Neue", Helvetica, Arial, sans-serif`;
+  // Schrift und Zeilenhöhe so wählen, dass die Liste auf eine A4-Seite passt (bis ca. 60 Zeilen)
+  const n = rows.length;
+  const fs = n <= 22 ? 10.5 : n <= 30 ? 9.5 : n <= 42 ? 8.5 : 7.5;
+  const pad = n <= 22 ? "2.2mm 3mm" : n <= 30 ? "1.5mm 2.6mm" : n <= 42 ? "1.1mm 2.2mm" : ".7mm 2mm";
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${esc(opts.title)} – Stand ${today}</title>
+<style>
+@page { size: A4 portrait; margin: 14mm 14mm 16mm; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ${fam}; color: #1a1a1a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.top { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 3px solid ${opts.color}; padding-bottom: 5mm; margin-bottom: 6mm; }
+h1 { margin: 0; font-size: 22pt; line-height: 1.1; color: ${opts.color}; font-weight: 700; letter-spacing: -.01em; }
+.sub { font-size: 11pt; color: #555; margin-top: 2mm; }
+.stand { text-align: right; font-size: 10pt; color: #555; white-space: nowrap; }
+.stand b { display: block; font-size: 13pt; color: #1a1a1a; }
+table { width: 100%; border-collapse: collapse; font-size: ${fs}pt; line-height: 1.25; }
+thead th { background: ${opts.color}; color: #fff; text-align: left; font-weight: 700; padding: ${pad}; }
+thead th:first-child { border-radius: 2mm 0 0 0; } thead th:last-child { border-radius: 0 2mm 0 0; }
+tbody td { padding: ${pad}; border-bottom: .3mm solid #e2e2e2; vertical-align: top; }
+tbody tr:nth-child(even) td { background: #f6f6f6; }
+td.idx { color: #888; width: 9mm; text-align: right; }
+td.tp { font-weight: 700; font-variant-numeric: tabular-nums; width: 26mm; }
+td.empty { color: ${opts.color}; font-weight: 400; font-style: italic; }
+tr { break-inside: avoid; }
+.foot { margin-top: 5mm; display: flex; justify-content: space-between; font-size: 8.5pt; color: #777; }
+.bar { height: 2mm; background: ${opts.color}; margin-bottom: 6mm; }
+.noprint { margin: 0 0 6mm; padding: 3mm 4mm; background: #fff4d6; border-radius: 2mm; font-family: -apple-system, sans-serif; font-size: 10pt; }
+@media print { .noprint { display: none; } }
+</style></head><body>
+<div class="noprint">Druckdialog: Ziel „Als PDF sichern“ wählen · Papier A4 · Hochformat · Ränder „Standard“.</div>
+<div class="bar"></div>
+<div class="top"><div><h1>${esc(opts.title)}</h1>${opts.sub ? `<div class="sub">${esc(opts.sub)}</div>` : ""}</div>
+<div class="stand">Stand<b>${today}</b>${rows.length} Einträge</div></div>
+<table><thead><tr><th>#</th><th>${colTitle("n")}</th>${cs.map(c => `<th>${esc(colTitle(c))}</th>`).join("")}</tr></thead><tbody>
+${rows.map((r, i) => `<tr><td class="idx">${i + 1}</td>${r.value ? `<td class="tp">${esc(r.value)}</td>` : `<td class="tp empty">offen</td>`}${cs.map(c => `<td>${esc(r.fields?.[c] ?? "")}</td>`).join("")}</tr>`).join("")}
+</tbody></table>
+<div class="foot"><span>${esc(opts.title)}${opts.sub ? " · " + esc(opts.sub) : ""}</span><span>Stand ${today}</span></div>
+</body></html>`;
+}
+$("#pdf-make").addEventListener("click", () => {
+  if (!state.series.rows.length) return alert("Die Serie ist leer.");
+  const opts = { title: $("#pdf-title").value.trim() || "Transponder-Übersicht", sub: $("#pdf-sub").value.trim(),
+    color: $("#pdf-color").value || "#c0101e", onlySel: $("#pdf-onlysel").checked };
+  state.series.pdf = { title: opts.title, sub: opts.sub, color: opts.color }; changed();
+  const w = window.open("", "_blank");
+  if (!w) return alert("Das Fenster wurde blockiert – bitte Pop-ups für diese Seite erlauben.");
+  w.document.open(); w.document.write(listHTML(opts)); w.document.close();
+  const go = () => setTimeout(() => w.print(), 300);
+  (w.document.fonts ? w.document.fonts.ready.then(go) : go());
+});
+
 // ---------- Globale Felder ----------
 function swatchRow(box, list, key) {
   box.innerHTML = `<button class="auto" data-c="auto" title="vom Drucker gemeldet">Auto</button>` +
@@ -916,9 +1012,10 @@ $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
     state.length_mm = 0; state.gap_mm = 1.5; state.series.digits = 5; state.series.start = 1; state.series.end = 10;
     state.series.mode = "on"; setRows(genValues(state.series));
   } else if (q === "transponder") {
-    state.items = [Object.assign(NEW.text(), { text: "{name}\n{nr}\n{raum}", bold: true, align: "center", line_spacing: 4 })];
+    state.items = [Object.assign(NEW.text(), { text: "{name}\n{nr}\n{raum}", font: "", bold: false, align: "center", line_spacing: 45 })];
     Object.assign(state, { tape: 24, length_mm: 37, padding_mm: 0.5, gap_mm: 1, margin_mm: 2, frame: "none", invert: false });
     state.series.columns = ["name", "nr", "raum"]; state.series.uniform = true; state.series.mode = "on";
+    state.series.pdf = { title: "Transponder-Übersicht", sub: "Schlüsselkasten", color: "#c0101e" };
     state.series.rows = [
       { value: "2397", fields: { name: "Editing Room", nr: "2", raum: "C1.22" }, items: null, on: true },
       { value: "2382", fields: { name: "Practice Room", nr: "1", raum: "C0.24" }, items: null, on: true },
@@ -1039,13 +1136,16 @@ async function doPrint() {
 // ---------- Drucker-Einstellungen ----------
 function syncSettings() {
   const st = CFG.settings || {};
+  const df = $("#deffont");
+  if (df && !df.options.length) df.innerHTML = `<option value="">Helvetica (System)</option>` + CFG.fonts.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
   $$("[data-set]").forEach(el => { if (el.type === "checkbox") el.checked = !!st[el.dataset.set]; else if (document.activeElement !== el) el.value = st[el.dataset.set] ?? 0; });
 }
 async function saveSetting(patch) {
   CFG.settings = await api("/api/settings", patch); syncSettings(); refreshPreview();
 }
 $$("[data-set]").forEach(el => el.addEventListener("change", () => {
-  saveSetting({ [el.dataset.set]: el.type === "checkbox" ? el.checked : +el.value || 0 });
+  const v = el.type === "checkbox" ? el.checked : el.tagName === "SELECT" ? el.value : +el.value || 0;
+  saveSetting({ [el.dataset.set]: v }).then(() => renderItems());
 }));
 $("#cal-apply").addEventListener("click", () => {
   const set = +$("#cal-set").value, meas = +$("#cal-meas").value;

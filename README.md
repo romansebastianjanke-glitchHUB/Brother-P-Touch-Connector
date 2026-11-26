@@ -20,6 +20,9 @@ Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
 - **Tabellen-Serien (Batches):** beliebige Spalten (z. B. `{name}`, `{nr}`, `{raum}`), aus Excel/Sheets
   einfügen (Tab oder `;` getrennt), Zeilen per Häkchen auswählen und nur die ausgewählten oder alle drucken,
   Filter, **einheitliche Schriftgröße** über alle Etiketten; als Vorlage speichern
+- **Standardschrift** einstellbar (Tab Druck); ist SRHHeadline installiert, wird sie automatisch gewählt
+- **Für alle übernehmen:** Einstellungen eines Elements auf alle einzeln gestalteten Etiketten der Serie übertragen
+- **Liste als PDF:** die Serie als A4-Tabelle (Hochformat, mit Datum „Stand …“) öffnen und als PDF sichern
 - **Schnellstart Transponder:** 24 mm, 37 mm, drei Zeilen zentriert und fett
 - **Serien:** fortlaufende Nummern oder eingefügte Liste, als bearbeitbare Liste unter der Vorschau –
   jeder Wert änderbar, jedes Etikett auf Wunsch komplett einzeln gestaltbar (Platzhalter `{n}`, `{datum}`)

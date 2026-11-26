@@ -47,11 +47,17 @@ class Studio:
         self.transport = t.read_text().strip() if t.exists() else DEFAULT_TRANSPORT
         self.history = home / "verlauf"
         self.settings_file = home / ".einstellungen.json"
-        self.settings = {"mirror": False, "length_offset_mm": 0.0}
+        self.settings = {"mirror": False, "length_offset_mm": 0.0, "default_font": None}
         try:
             self.settings.update(json.loads(self.settings_file.read_text()))
         except Exception:  # noqa: BLE001
             pass
+        if self.settings.get("default_font") is None:
+            # beim ersten Start: SRHHeadline (fett) bevorzugen, falls installiert
+            fonts = list(layout.list_fonts())
+            srh = [f for f in fonts if "srhheadline" in f.lower().replace(" ", "")]
+            bold = [f for f in srh if f.lower().endswith(("bd", "bold"))]
+            self.settings["default_font"] = (bold or srh or [""])[0]
         # ".flip" glich einen inzwischen behobenen Spiegelfehler aus -> entfernen
         legacy = home / ".flip"
         if legacy.exists():
@@ -61,6 +67,8 @@ class Studio:
     def save_settings(self, data: dict) -> dict:
         if "mirror" in data:
             self.settings["mirror"] = bool(data["mirror"])
+        if "default_font" in data:
+            self.settings["default_font"] = str(data["default_font"] or "")
         if "length_offset_mm" in data:
             self.settings["length_offset_mm"] = max(-50.0, min(50.0, float(data["length_offset_mm"] or 0)))
         self.settings_file.write_text(json.dumps(self.settings, indent=1))
@@ -70,6 +78,17 @@ class Studio:
         """Geräte-Einstellungen in die Etikettbeschreibung übernehmen."""
         spec = dict(spec)
         spec["_length_offset_mm"] = float(self.settings.get("length_offset_mm", 0) or 0)
+        default = self.settings.get("default_font") or ""
+        if default:
+            def fill(items):
+                return [dict(it, font=it.get("font") or default) if it.get("type") in ("text", "number", "barcode") else it
+                        for it in (items or [])]
+            spec["items"] = fill(spec.get("items"))
+            series = dict(spec.get("series") or {})
+            if isinstance(series.get("rows"), list):
+                series["rows"] = [dict(r, items=fill(r["items"])) if isinstance(r, dict) and r.get("items") else r
+                                  for r in series["rows"]]
+            spec["series"] = series
         return spec
 
     # --- Drucker-Thread (Haupt-Thread) ------------------------------------------
