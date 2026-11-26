@@ -21,7 +21,8 @@ Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
   einfügen (Tab oder `;` getrennt), Zeilen per Häkchen auswählen und nur die ausgewählten oder alle drucken,
   Filter, **einheitliche Schriftgröße** über alle Etiketten; als Vorlage speichern
 - **Standardschrift** einstellbar (Tab Druck); ist SRHHeadline installiert, wird sie automatisch gewählt
-- **Für alle übernehmen:** Einstellungen eines Elements auf alle einzeln gestalteten Etiketten der Serie übertragen
+- **Bearbeiten für Alle | Ausgewählte | Nur dieses:** bei Serien oben im Editor wählen, für welche Etiketten
+  eine Änderung gilt (Häkchen in der Liste = „Ausgewählte“); „⇉ alle“ überträgt ein Element auf alle Etiketten
 - **Liste als PDF:** die Serie als A4-Tabelle (Hochformat, mit Datum „Stand …“) öffnen und als PDF sichern
 - **Schnellstart Transponder:** 24 mm, 37 mm, drei Zeilen zentriert und fett
 - **Serien:** fortlaufende Nummern oder eingefügte Liste, als bearbeitbare Liste unter der Vorschau –

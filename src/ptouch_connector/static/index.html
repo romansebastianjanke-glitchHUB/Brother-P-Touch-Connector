@@ -166,7 +166,8 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
 .srow .pic img { max-height: 30px; max-width: 100%; image-rendering: pixelated; }
 .srow .num { font-weight: 700; color: var(--muted); font-size: 12px; text-align: right; }
 .srow input[type=text] { padding: 5px 8px; min-width: 0; }
-.srow .acts { display: flex; gap: 2px; align-items: center; }
+.srow .acts { display: flex; gap: 2px; align-items: center; justify-content: flex-end; }
+.tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent2) 20%, transparent); color: color-mix(in srgb, var(--accent2) 70%, var(--ink)); margin-right: 2px; }
 .sfoot { display: flex; gap: 8px; padding: 0 20px 16px; flex-wrap: wrap; }
 .colhead { display: flex; align-items: center; gap: 4px; }
 .colhead code { font-size: 11px; }
@@ -467,17 +468,63 @@ async function api(path, body) {
   const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return r.json();
 }
-const items = () => editing === null ? state.items : state.series.rows[editing].items;
-const CONTENT_KEYS = new Set(["type", "text", "data", "src", "emoji", "key", "_uid"]);
+// ---------- Geltungsbereich: Alle | Ausgewählte | Nur dieses ----------
+// scope "all": Vorlage bearbeiten, Änderungen gehen auch auf alle einzeln gestalteten Etiketten
+// scope "sel": Etiketten mit Häkchen gemeinsam bearbeiten; scope "one": nur Etikett `editing`
+let scope = "all";
+const seriesOn = () => state.series.mode !== "none";
+const selRows = () => (state.series.rows || []).map((r, i) => [r, i]).filter(([r]) => r.on !== false);
 function customRows() { return (state.series.rows || []).filter(r => r.items); }
-// Einstellung (nicht Inhalt) eines Elements auf die gleichen Elemente aller Etiketten übertragen
-function propagate(idx, keys, srcItem) {
-  const targets = [state.items, ...customRows().map(r => r.items)];
+const newId = () => Math.random().toString(36).slice(2, 10);
+function ensureIds(list) { (list || []).forEach(it => { if (!it._id) it._id = newId(); }); }
+function items() {
+  if (!seriesOn() || scope === "all") return state.items;
+  if (scope === "one" && state.series.rows[editing]) return state.series.rows[editing].items;
+  const s = selRows(); return s.length && s[0][0].items ? s[0][0].items : state.items;
+}
+function targetLists() {
+  if (!seriesOn() || scope === "all") return [state.items, ...customRows().map(r => r.items)];
+  if (scope === "one") return [items()];
+  return selRows().map(([r]) => r.items).filter(Boolean);
+}
+// Etiketten bekommen eine eigene Kopie der Vorlage (gleiche Element-IDs -> abgleichbar)
+function materialize(rows) { ensureIds(state.items); rows.forEach(r => { if (!r.items) r.items = clone(state.items); }); }
+// geänderte Eigenschaften eines Elements auf denselben Elementen im Geltungsbereich setzen
+function syncProp(it, keys) {
+  const ed = items();
+  targetLists().forEach(list => {
+    if (list === ed) return;
+    const t = list.find(x => x._id === it._id && x.type === it.type);
+    if (t) keys.forEach(k => { t[k] = clone(it[k]); });
+  });
+}
+// Hinzufügen/Löschen/Verschieben im Geltungsbereich nachziehen (Inhalte vorhandener Elemente bleiben)
+function syncStructure() {
+  const ed = items(); ensureIds(ed);
+  targetLists().forEach(list => {
+    if (list === ed) return;
+    const next = ed.map(it => { const t = list.find(x => x._id === it._id); return t ? Object.assign(t, { position: it.position }) : clone(it); });
+    list.splice(0, list.length, ...next);
+  });
+}
+function setScope(sc, idx) {
+  if (sc === "sel") {
+    const s = selRows();
+    if (!s.length) { showMessages([["warn", "Keine Etiketten ausgewählt – in der Liste Häkchen setzen."]], "print"); return; }
+    materialize(s.map(x => x[0])); showIdx = s[0][1]; editing = null;
+  } else if (sc === "one") {
+    const r = state.series.rows[idx]; if (!r) return;
+    materialize([r]); editing = idx; showIdx = idx;
+  } else { editing = null; }
+  scope = sc; selected = openItem = 0; renderAll(); changed(); drawPreview();
+}
+// ein Element (alle Einstellungen) auf Vorlage + alle Etiketten übertragen
+function applyToAll(it) {
   let n = 0;
-  targets.forEach(list => {
-    const t = list && list[idx];
-    if (!t || t === srcItem || t.type !== srcItem.type) return;
-    keys.forEach(k => { if (!CONTENT_KEYS.has(k)) t[k] = clone(srcItem[k]); }); n++;
+  [state.items, ...customRows().map(r => r.items)].forEach(list => {
+    if (list === items()) return;
+    const t = list.find(x => x._id === it._id && x.type === it.type);
+    if (t) { Object.keys(it).forEach(k => { if (k !== "_id") t[k] = clone(it[k]); }); n++; }
   });
   return n;
 }
@@ -535,7 +582,7 @@ function fileToDataURL(file) {
 async function addImageFile(file) {
   if (!file || !file.type.startsWith("image/")) return;
   const it = NEW.image(); it.src = await fileToDataURL(file);
-  items().push(it); selected = openItem = items().length - 1; showTab("inhalt"); renderItems(); changed();
+  it._id = newId(); items().push(it); syncStructure(); selected = openItem = items().length - 1; showTab("inhalt"); renderItems(); changed();
 }
 
 // ---------- Elemente ----------
@@ -599,7 +646,7 @@ function itemHTML(it, i) {
   body = posBlock + body;
   return `<div class="item ${i === selected ? "sel" : ""} ${i === openItem ? "open" : ""}" data-idx="${i}">
     <div class="item-head" data-toggle><span class="ic">${ICONS[it.type] || "?"}</span><b>${NAMES[it.type] || it.type}${summary(it)}</b>
-      ${editing !== null || customRows().length ? `<button class="btn ghost small" data-act="all" title="Einstellungen dieses Elements (Schrift, Größe, Position …) für alle Etiketten der Serie übernehmen – Texte bleiben">⇉ alle</button>` : ""}
+      ${seriesOn() && scope !== "all" ? `<button class="btn ghost small" data-act="all" title="Dieses Element so wie hier auf alle Etiketten der Serie übertragen">⇉ alle</button>` : ""}
       <button class="btn ghost small" data-act="dup" title="duplizieren">⧉</button>
       <button class="btn ghost small" data-act="del" title="entfernen">✕</button></div>
     <div class="item-body">${body}</div></div>`;
@@ -610,26 +657,37 @@ function syncWhen(card, it) {
 }
 function renderContext() {
   const box = $("#context");
-  if (editing === null) {
-    const nc = customRows().length;
-    box.innerHTML = state.series.mode !== "none" ? `<div class="context">✎ Vorlage für alle Etiketten der Serie
-      ${nc ? `<label class="check" style="width:100%;font-weight:500"><input type="checkbox" id="ctx-prop" ${state.series.propagate ? "checked" : ""}>
-        Änderungen auch auf die ${nc} einzeln gestaltete${nc === 1 ? "" : "n"} Etikett${nc === 1 ? "" : "en"} anwenden</label>` : ""}</div>` : "";
-    const cp = $("#ctx-prop"); if (cp) cp.onchange = () => { state.series.propagate = cp.checked; changed(); };
-    $("#quickwrap").hidden = false;
-  } else {
-    const r = state.series.rows[editing];
-    box.innerHTML = `<div class="context custom">✎ Etikett ${editing + 1} („${esc(r.value)}“) – eigene Gestaltung
-      <span class="grow"></span><button class="btn small" id="ctx-back">Fertig</button><button class="btn small" id="ctx-reset">Zur Vorlage zurücksetzen</button></div>`;
-    $("#quickwrap").hidden = true;
-    $("#ctx-back").onclick = () => { editing = null; selected = openItem = 0; renderAll(); };
-    $("#ctx-reset").onclick = () => { r.items = null; editing = null; selected = openItem = 0; renderAll(); changed(); };
-  }
+  $("#quickwrap").hidden = seriesOn() && scope !== "all";
+  if (!seriesOn()) { box.innerHTML = ""; return; }
+  const rows = state.series.rows, nsel = selRows().length, cur = rows[scope === "one" ? editing : showIdx];
+  const curNo = (scope === "one" ? editing : showIdx) + 1;
+  const hint = {
+    all: `Änderungen gelten für <b>alle ${rows.length} Etiketten</b>.`,
+    sel: `Änderungen gelten für die <b>${nsel} ausgewählten</b> Etiketten (Häkchen in der Liste).`,
+    one: `Änderungen gelten nur für <b>Etikett ${curNo}</b>${cur ? ` („${esc(cur.value)}“)` : ""}.`,
+  }[scope];
+  box.innerHTML = `<div class="context ${scope === "all" ? "" : "custom"}" style="flex-direction:column;align-items:stretch">
+    <div class="row" style="align-items:center;gap:8px"><span>Bearbeiten für</span>
+      <div class="seg" id="scope-seg">
+        <button data-scope="all" class="${scope === "all" ? "on" : ""}">Alle (${rows.length})</button>
+        <button data-scope="sel" class="${scope === "sel" ? "on" : ""}" ${nsel ? "" : "disabled"}>Ausgewählte (${nsel})</button>
+        <button data-scope="one" class="${scope === "one" ? "on" : ""}">Nur Nr. ${Math.min(curNo, rows.length) || 1}</button>
+      </div></div>
+    <div style="font-weight:500">${hint}</div>
+    ${scope !== "all" ? `<div class="row"><button class="btn small" id="scope-reset">Diese wieder wie die Vorlage</button></div>` : ""}
+  </div>`;
+  $$("#scope-seg [data-scope]").forEach(b => b.onclick = () => setScope(b.dataset.scope, showIdx));
+  const rs = $("#scope-reset");
+  if (rs) rs.onclick = () => {
+    const rowsT = scope === "one" ? [rows[editing]] : selRows().map(x => x[0]);
+    if (!confirm(`${rowsT.length} Etikett${rowsT.length === 1 ? "" : "en"} auf die Vorlage zurücksetzen?`)) return;
+    rowsT.forEach(r => { r.items = null; }); setScope("all");
+  };
 }
 function renderItems() {
   renderContext();
   const list = items(), box = $("#items");
-  normalize(list);
+  ensureIds(list); normalize(list);
   renderArrange();
   box.innerHTML = list.map(itemHTML).join("") || `<div class="hint">Noch leer – oben ein Element hinzufügen oder Schnellstart wählen.</div>`;
   $$(".item", box).forEach(card => {
@@ -641,10 +699,10 @@ function renderItems() {
         let v = el.type === "checkbox" ? el.checked : el.value;
         if (el.type === "range" || el.type === "number" || k === "rotate") v = v === "" ? 0 : +v;
         it[k] = v; syncWhen(card, it);
-        if (editing === null && state.series.propagate && !CONTENT_KEYS.has(k)) propagate(i, [k], it);
         $(".item-head b", card).innerHTML = `${NAMES[it.type]}${summary(it)}`;
         if (["text", "data", "emoji"].includes(k)) renderArrange();
         if (it.type === "symbol" && k === "emoji") await updateSymbol(it);
+        syncProp(it, it.type === "symbol" ? [k, "src"] : [k]);
         changed();
       });
     });
@@ -657,33 +715,33 @@ function renderItems() {
     $$("[data-act]", card).forEach(b => b.addEventListener("click", e => {
       e.stopPropagation(); const a = b.dataset.act;
       if (a === "all") {
-        const n = propagate(i, Object.keys(it), it);
-        showMessages([["ok", n ? `Einstellungen von „${NAMES[it.type]}“ auf ${n} weitere Etikett-Gestaltung${n === 1 ? "" : "en"} übertragen (Texte unverändert).` : "Keine passenden Elemente auf anderen Etiketten gefunden."]], "print");
+        const n = applyToAll(it);
+        showMessages([["ok", n ? `„${NAMES[it.type]}“ auf alle Etiketten übertragen.` : "Keine passenden Elemente auf anderen Etiketten gefunden."]], "print");
         renderSeries(); changed(); return;
       }
       if (a === "del") list.splice(i, 1);
-      if (a === "dup") list.splice(i + 1, 0, clone(it));
+      if (a === "dup") { const c = clone(it); c._id = newId(); list.splice(i + 1, 0, c); }
       if (a === "up" && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
       if (a === "down" && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
       selected = openItem = Math.max(0, Math.min(list.length - 1, a === "up" ? i - 1 : a === "down" || a === "dup" ? i + 1 : i));
-      renderItems(); changed();
+      syncStructure(); renderItems(); changed();
     }));
     $$("[data-pos]", card).forEach(b => b.addEventListener("click", e => {
-      e.stopPropagation(); it.position = b.dataset.pos; normalize(list);
+      e.stopPropagation(); it.position = b.dataset.pos; normalize(list); syncStructure();
       selected = openItem = list.indexOf(it); renderItems(); changed();
     }));
-    $$("[data-sym]", card).forEach(b => b.addEventListener("click", async () => { it.key = b.dataset.sym; it.emoji = ""; await updateSymbol(it); renderItems(); changed(); }));
+    $$("[data-sym]", card).forEach(b => b.addEventListener("click", async () => { it.key = b.dataset.sym; it.emoji = ""; await updateSymbol(it); syncProp(it, ["key", "emoji", "src"]); renderItems(); changed(); }));
     const file = $("[data-file]", card);
-    if (file) file.addEventListener("change", async () => { if (file.files[0]) { it.src = await fileToDataURL(file.files[0]); renderItems(); changed(); } });
+    if (file) file.addEventListener("change", async () => { if (file.files[0]) { it.src = await fileToDataURL(file.files[0]); syncProp(it, ["src"]); renderItems(); changed(); } });
     const qrn = $("[data-qrn]", card);
-    if (qrn) qrn.addEventListener("click", () => { it.data = "{n}"; ensureSeries(5); renderAll(); changed(); });
+    if (qrn) qrn.addEventListener("click", () => { it.data = "{n}"; syncProp(it, ["data"]); ensureSeries(5); renderAll(); changed(); });
     const wifi = $("[data-wifi]", card);
     if (wifi) wifi.addEventListener("click", () => {
       const ssid = prompt("WLAN-Name (SSID):"); if (ssid === null) return;
       const pw = prompt("WLAN-Passwort (leer = offenes Netz):") ?? "";
       const e2 = s => s.replace(/([\\;,:"])/g, "\\$1");
       it.data = `WIFI:T:${pw ? "WPA" : "nopass"};S:${e2(ssid)};${pw ? `P:${e2(pw)};` : ""};`;
-      renderItems(); changed();
+      syncProp(it, ["data"]); renderItems(); changed();
     });
   });
 }
@@ -741,7 +799,7 @@ $$("#arrange .zone").forEach(z => {
       const at = lastInZone ? lastInZone[1] + 1 : (zone === "left" ? 0 : list.length);
       list.splice(at, 0, it);
     }
-    normalize(list); selected = openItem = list.indexOf(it); dragIdx = null;
+    normalize(list); syncStructure(); selected = openItem = list.indexOf(it); dragIdx = null;
     renderItems(); changed();
   });
 });
@@ -759,7 +817,7 @@ function newRow(value, fields) { return { value: String(value ?? ""), fields: fi
 function setRows(values) {
   const old = state.series.rows || [];
   state.series.rows = values.map((v, i) => Object.assign(newRow(v), old[i] ? { items: old[i].items, fields: old[i].fields || {} } : {}));
-  editing = null; showIdx = 0;
+  editing = null; scope = "all"; showIdx = 0;
 }
 function ensureSeries(digits) {
   if (state.series.mode === "none" || !state.series.rows.length) {
@@ -772,7 +830,7 @@ const colKey = c => c.trim().toLowerCase().replace(/[^a-z0-9äöüß_]+/g, "_").
 $("#series-on").addEventListener("change", e => {
   state.series.mode = e.target.checked ? "on" : "none";
   if (e.target.checked && !state.series.rows.length) setRows(genValues(state.series));
-  editing = null; renderAll(); changed();
+  editing = null; scope = "all"; renderAll(); changed();
 });
 $$("[data-s]").forEach(el => el.addEventListener("input", () => { state.series[el.dataset.s] = +el.value; }));
 $("#cols").addEventListener("change", () => {
@@ -808,7 +866,7 @@ function useTable(append) {
   const { columns, rows } = parseTable(t, $("#paste-header").checked);
   state.series.columns = columns; state.series.mode = "on";
   state.series.rows = append ? state.series.rows.concat(rows) : rows;
-  editing = null; showIdx = append ? showIdx : 0; renderAll(); changed();
+  editing = null; scope = "all"; showIdx = append ? showIdx : 0; renderAll(); changed();
   showMessages([["ok", `${rows.length} Zeile${rows.length === 1 ? "" : "n"} ${append ? "angehängt" : "übernommen"}.`]], "print");
 }
 $("#use-list").addEventListener("click", () => useTable(false));
@@ -850,24 +908,31 @@ function renderSeries() {
   if (!on) return;
   $("#series-count").textContent = `${rows.length} Zeile${rows.length === 1 ? "" : "n"} · ${sel} ausgewählt`;
   const g = $("#sgrid");
-  g.style.setProperty("--cols", `20px 22px 84px minmax(56px, .55fr) ${cs.map(() => "minmax(64px, 1fr)").join(" ")} max-content`);
+  g.style.setProperty("--cols", `20px 22px 84px minmax(56px, .55fr) ${cs.map(() => "minmax(64px, 1fr)").join(" ")} 132px`);
   const head = `<div class="srow head"><span></span><span>#</span><span>Vorschau</span><span class="colhead"><code>{n}</code></span>${cs.map(c => `<span class="colhead"><code>{${esc(c)}}</code></span>`).join("")}<span></span></div>`;
-  g.innerHTML = head + rows.map((r, i) => `<div class="srow body ${i === showIdx ? "on" : ""} ${i === editing ? "editing" : ""} ${r.on === false ? "off" : ""}" data-r="${i}">
+  const inScope = i => scope === "one" ? i === editing : scope === "sel" ? rows[i].on !== false : false;
+  g.innerHTML = head + rows.map((r, i) => `<div class="srow body ${i === showIdx ? "on" : ""} ${inScope(i) ? "editing" : ""} ${r.on === false ? "off" : ""}" data-r="${i}">
       <input type="checkbox" data-on="${i}" ${r.on !== false ? "checked" : ""} title="drucken">
       <span class="num">${i + 1}</span>
       <div class="pic"><img data-pic="${i}" alt=""></div>
       <input type="text" data-cell="${i}:n" value="${esc(r.value)}">
       ${cs.map(c => `<input type="text" data-cell="${i}:${esc(c)}" value="${esc(r.fields?.[c] ?? "")}">`).join("")}
       <div class="acts">${r.items ? `<span class="tag" title="eigene Gestaltung">eigen</span>` : ""}
-        <button class="btn ghost small ${i === editing ? "soft" : ""}" data-edit="${i}" title="dieses Etikett einzeln gestalten">✎</button>
+        <button class="btn ghost small ${scope === "one" && i === editing ? "soft" : ""}" data-edit="${i}" title="nur dieses Etikett bearbeiten">✎</button>
         <button class="btn ghost small" data-rdup="${i}" title="duplizieren">⧉</button>
         <button class="btn ghost small" data-rdel="${i}" title="entfernen">✕</button></div></div>`).join("");
   $$("[data-r]", g).forEach(c => c.addEventListener("click", e => {
     if (e.target.closest("button,input")) return;
     showIdx = +c.dataset.r; markSeries(); drawPreview();
+    if (scope === "one") setScope("one", showIdx); else renderContext();
   }));
   $$("[data-on]", g).forEach(cb => cb.addEventListener("change", () => {
     rows[+cb.dataset.on].on = cb.checked; cb.closest(".srow").classList.toggle("off", !cb.checked);
+    if (scope === "sel") {
+      if (cb.checked) { const r = rows[+cb.dataset.on]; if (!r.items) r.items = clone(items()); }
+      if (!selRows().length) { setScope("all"); return; }
+      renderItems(); renderSeries();
+    } else renderContext();
     const n = rows.filter(r => r.on !== false).length;
     $("#series-count").textContent = `${rows.length} Zeilen · ${n} ausgewählt`; $("#serie-badge").textContent = n;
     changed();
@@ -877,7 +942,7 @@ function renderSeries() {
     inp.addEventListener("focus", () => { if (showIdx !== i) { showIdx = i; markSeries(); drawPreview(); } });
     inp.addEventListener("input", () => {
       if (key === "n") rows[i].value = inp.value; else { rows[i].fields = rows[i].fields || {}; rows[i].fields[key] = inp.value; }
-      if (editing === i) renderContext(); changed();
+      if (scope !== "all") renderContext(); changed();
     });
     inp.addEventListener("keydown", e => {
       const go = d => { e.preventDefault(); const n = $(`[data-cell="${i + d}:${key}"]`); if (n) { n.focus(); n.select(); } };
@@ -887,11 +952,8 @@ function renderSeries() {
   });
   $$("[data-edit]", g).forEach(b => b.addEventListener("click", () => {
     const i = +b.dataset.edit;
-    if (editing === i) { editing = null; } else {
-      if (!rows[i].items) rows[i].items = clone(state.items);
-      editing = i; showIdx = i;
-    }
-    selected = openItem = 0; renderAll(); showTab("inhalt"); changed();
+    if (scope === "one" && editing === i) setScope("all"); else setScope("one", i);
+    showTab("inhalt");
   }));
   $$("[data-rdup]", g).forEach(b => b.addEventListener("click", () => {
     const i = +b.dataset.rdup; rows.splice(i + 1, 0, clone(rows[i])); if (editing !== null && editing > i) editing++;
@@ -900,7 +962,7 @@ function renderSeries() {
   $$("[data-rdel]", g).forEach(b => b.addEventListener("click", () => {
     const i = +b.dataset.rdel; if (rows.length <= 1) return;
     rows.splice(i, 1);
-    if (editing === i) editing = null; else if (editing !== null && editing > i) editing--;
+    if (editing === i) { editing = null; scope = "all"; } else if (editing !== null && editing > i) editing--;
     showIdx = Math.min(showIdx, rows.length - 1); renderAll(); changed();
   }));
   applyFilter(); updateSeriesPics();
@@ -1002,7 +1064,7 @@ function renderAll() { syncGlobals(); renderItems(); renderSeries(); }
 $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
   const q = b.dataset.quick;
   if (items().length && !confirm("Aktuelles Etikett durch den Schnellstart ersetzen?")) return;
-  editing = null; state.series.rows = [];
+  editing = null; scope = "all"; state.series.rows = [];
   if (q === "schild") {
     state.items = [Object.assign(NEW.number(), { divider: true, divider_px: 1 }), Object.assign(NEW.text(), { text: "" })];
     state.length_mm = state.length_mm || 90; state.series.digits = 2; state.series.start = 1; state.series.end = 10;
@@ -1023,7 +1085,7 @@ $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
     showTab("serie");
   } else {
     state.items = [Object.assign(NEW.text(), { text: "Hallo" })];
-    state.series.mode = "none"; editing = null;
+    state.series.mode = "none"; editing = null; scope = "all";
   }
   selected = openItem = 0; renderAll(); changed();
 }));
@@ -1233,7 +1295,9 @@ function loadSpec(spec) {
   s.items = fillItems(s.items);
   s.series.columns = Array.isArray(s.series.columns) ? s.series.columns : [];
   s.series.rows = s.series.rows.map(r => ({ value: String(r.value ?? ""), fields: r.fields || {}, on: r.on !== false, items: r.items ? fillItems(r.items) : null }));
-  state = s; selected = openItem = 0; showIdx = 0; editing = null;
+  ensureIds(s.items); s.series.rows.forEach(r => { if (r.items) (function (l) { l.forEach((it, i) => { if (!it._id) { const t = s.items[i]; it._id = t && t.type === it.type ? t._id : newId(); } }); })(r.items); });
+  delete s.series.propagate;
+  state = s; selected = openItem = 0; showIdx = 0; editing = null; scope = "all";
   renderAll(); changed();
 }
 
@@ -1253,7 +1317,7 @@ $$("[data-add]").forEach(b => b.addEventListener("click", async () => {
   const it = NEW[b.dataset.add]();
   if (it.type === "symbol") await updateSymbol(it);
   if (it.type === "number" && items().some(x => x.type === "number" && x.position === "left")) it.position = "right";
-  items().push(it); selected = openItem = items().length - 1;
+  it._id = newId(); items().push(it); syncStructure(); selected = openItem = items().length - 1;
   if ((it.type === "number" || it.type === "qr") && state.series.mode === "none") ensureSeries(it.type === "qr" ? 5 : undefined);
   renderAll(); changed();
   const card = $(`.item[data-idx="${selected}"]`); if (card) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
