@@ -976,8 +976,30 @@ function updateSeriesPics() {
 // ---------- Liste als PDF ----------
 const COL_TITLES = { n: "Transponder", name: "Bezeichnung", nr: "Nr.", raum: "Raum", zugang: "Zugang" };
 const colTitle = c => COL_TITLES[c] || c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, " ");
+// Etikett-Spalten in lesbare Listen-Spalten umbauen:
+// "name" + "nr" -> Bezeichnung (z. B. „Editing Room 1“), Zusätze nach " · " -> eigene Spalten
+function listTable(rows) {
+  const cs = cols();
+  const SPLIT_TITLES = { nr: "Nutzung", raum: "Zugang" };
+  const data = rows.map(r => {
+    const f = Object.assign({}, r.fields || {}), out = {}, extra = {};
+    cs.forEach(c => {
+      const parts = String(f[c] ?? "").split(" · ");
+      out[c] = parts[0].trim(); if (parts.length > 1) extra[c] = parts.slice(1).join(" · ").trim();
+    });
+    if (cs.includes("name") && cs.includes("nr")) {
+      out.name = [out.name, out.nr].filter(Boolean).join(" ");
+      delete out.nr;
+    }
+    return { tp: r.value, out, extra };
+  });
+  let columns = cs.filter(c => !(c === "nr" && cs.includes("name"))).map(c => ({ key: c, title: colTitle(c), src: "out" }));
+  cs.forEach(c => { if (data.some(d => d.extra[c])) columns.push({ key: c, title: SPLIT_TITLES[c] || colTitle(c) + " (Zusatz)", src: "extra" }); });
+  return { columns, data };
+}
 function listHTML(opts) {
-  const cs = cols(), rows = state.series.rows.filter(r => !opts.onlySel || r.on !== false);
+  const rows = state.series.rows.filter(r => !opts.onlySel || r.on !== false);
+  const T = listTable(rows);
   const today = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   const font = (CFG.settings && CFG.settings.default_font) || "";
   const fam = `"SRHHeadline", "SRH Headline", "${font.replace(/"/g, "")}", "Helvetica Neue", Helvetica, Arial, sans-serif`;
@@ -1003,6 +1025,8 @@ tbody tr:nth-child(even) td { background: #f6f6f6; }
 td.idx { color: #888; width: 9mm; text-align: right; }
 td.tp { font-weight: 700; font-variant-numeric: tabular-nums; width: 26mm; }
 td.empty { color: ${opts.color}; font-weight: 400; font-style: italic; }
+td.nm { font-weight: 700; }
+td.x { color: #555; }
 tr { break-inside: avoid; }
 .foot { margin-top: 5mm; display: flex; justify-content: space-between; font-size: 8.5pt; color: #777; }
 .bar { height: 2mm; background: ${opts.color}; margin-bottom: 6mm; }
@@ -1013,8 +1037,8 @@ tr { break-inside: avoid; }
 <div class="bar"></div>
 <div class="top"><div><h1>${esc(opts.title)}</h1>${opts.sub ? `<div class="sub">${esc(opts.sub)}</div>` : ""}</div>
 <div class="stand">Stand<b>${today}</b>${rows.length} Einträge</div></div>
-<table><thead><tr><th>#</th><th>${colTitle("n")}</th>${cs.map(c => `<th>${esc(colTitle(c))}</th>`).join("")}</tr></thead><tbody>
-${rows.map((r, i) => `<tr><td class="idx">${i + 1}</td>${r.value ? `<td class="tp">${esc(r.value)}</td>` : `<td class="tp empty">offen</td>`}${cs.map(c => `<td>${esc(r.fields?.[c] ?? "")}</td>`).join("")}</tr>`).join("")}
+<table><thead><tr><th>#</th><th>${colTitle("n")}</th>${T.columns.map(c => `<th>${esc(c.title)}</th>`).join("")}</tr></thead><tbody>
+${T.data.map((d, i) => `<tr><td class="idx">${i + 1}</td>${d.tp ? `<td class="tp">${esc(d.tp)}</td>` : `<td class="tp empty">offen</td>`}${T.columns.map(c => `<td class="${c.src === "extra" ? "x" : c.key === "name" ? "nm" : ""}">${esc(d[c.src][c.key] ?? "")}</td>`).join("")}</tr>`).join("")}
 </tbody></table>
 <div class="foot"><span>${esc(opts.title)}${opts.sub ? " · " + esc(opts.sub) : ""}</span><span>Stand ${today}</span></div>
 </body></html>`;
