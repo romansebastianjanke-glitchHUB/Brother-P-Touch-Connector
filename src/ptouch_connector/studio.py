@@ -140,7 +140,9 @@ class Studio:
             if loaded and loaded != tape:
                 raise RuntimeError(f"Eingelegt ist {loaded:g} mm-Band, gewählt sind {tape:g} mm. "
                                    "Band wechseln oder „Automatisch“ wählen.")
-            images, warnings, values = layout.render_all(spec, tape)
+            images, warnings, values, _ = layout.render_all(spec, tape, only_selected=True)
+            if not images:
+                raise RuntimeError("Keine Etiketten ausgewählt.")
             copies = max(1, min(99, int(spec.get("copies", 1))))
             mirror = bool(self.settings.get("mirror"))
             pages = []
@@ -191,15 +193,16 @@ class Studio:
             tape = self.status.get("tape_mm") or 12
         tape = float(tape)
         left, pins = protocol.tape_spec(tape)
-        images, warnings, values = layout.render_all(spec, tape)
-        out = []
-        out = [_png(img) for img in images[:120]]
+        images, warnings, values, _ = layout.render_all(spec, tape)
+        selected = sum(1 for r in layout.series_rows(spec) if r.get("on", True))
+        out = [_png(img) for img in images[:300]]
         w = images[0].width
         margin = layout.margin_dots(spec)
         return {
             "images": out,
             "count": len(images),
-            "values": values[:120],
+            "values": values[:300],
+            "selected": selected,
             "copies": int(spec.get("copies", 1)),
             "tape_mm": tape,
             "pins": pins,

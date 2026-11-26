@@ -118,11 +118,26 @@ def _crop_white(img: Image.Image) -> Image.Image:
     return img.crop(bbox) if bbox else img
 
 
-def substitute(text: str, value: str | None) -> str:
+def substitute(text: str, value) -> str:
+    """Platzhalter ersetzen: {datum}, {n} und bei Tabellen-Serien jede Spalte, z. B. {raum}.
+
+    `value` ist ein Text (nur {n}) oder ein dict {"n": …, "raum": …}.
+    """
     text = text.replace("{datum}", _dt.date.today().strftime("%d.%m.%Y"))
-    if value is not None:
-        text = text.replace("{n}", value)
+    if value is None:
+        return text
+    ctx = value if isinstance(value, dict) else {"n": value}
+    for key, val in ctx.items():
+        if val is not None:
+            text = text.replace("{" + str(key) + "}", str(val))
     return text
+
+
+# Schriftgrößen-Protokoll für einheitliche Größen in einer Serie (pro Thread,
+# weil der Studio-Server Vorschauen parallel berechnet)
+import threading as _threading
+
+_LOCAL = _threading.local()
 
 
 def decode_data_url(src: str) -> Image.Image:
@@ -198,6 +213,10 @@ def _render_text(item: dict, h: int, value: str | None, warnings: list[str]) -> 
                 hi = mid - 1
         f, sp, bb = best
     stroke = max(1, f.size // 22) if bold and hasattr(f, "size") else 0
+    log = getattr(_LOCAL, "sizes", None)
+    if log is not None and "_uid" in item and hasattr(f, "size"):
+        uid = item["_uid"]
+        log[uid] = min(log.get(uid, 10 ** 6), int(f.size))
 
     tw, th = bb[2] - bb[0], bb[3] - bb[1]
     pad = 2 + (th // 4 if italic else 0)
@@ -381,15 +400,17 @@ def series_rows(spec: dict) -> list[dict]:
     s = spec.get("series") or {}
     mode = s.get("mode", "none")
     if mode == "none" or not mode:
-        return [{"value": None, "items": None}]
+        return [{"value": None, "items": None, "fields": {}, "on": True}]
     rows = s.get("rows")
     if isinstance(rows, list) and rows:
         out = []
         for r in rows[:500]:
             if isinstance(r, dict):
-                out.append({"value": str(r.get("value", "")), "items": r.get("items") or None})
+                fields = {str(k): str(v) for k, v in (r.get("fields") or {}).items()}
+                out.append({"value": str(r.get("value", "")), "items": r.get("items") or None,
+                            "fields": fields, "on": r.get("on", True) is not False})
             else:
-                out.append({"value": str(r), "items": None})
+                out.append({"value": str(r), "items": None, "fields": {}, "on": True})
         return out
     if mode == "numbers":
         vals = _generated_values(s)
@@ -397,7 +418,8 @@ def series_rows(spec: dict) -> list[dict]:
         vals = [ln.strip() for ln in str(s.get("list", "")).splitlines() if ln.strip()][:500]
     else:
         vals = []
-    return [{"value": v, "items": None} for v in vals] or [{"value": None, "items": None}]
+    return ([{"value": v, "items": None, "fields": {}, "on": True} for v in vals]
+            or [{"value": None, "items": None, "fields": {}, "on": True}])
 
 
 def series_values(spec: dict) -> list[str | None]:
@@ -568,13 +590,59 @@ def _render_label_once(spec: dict, tape_mm: float, value: str | None,
     return img.point(lambda p: 0 if p < 128 else 255), warnings, overflow
 
 
-def render_all(spec: dict, tape_mm: float) -> tuple[list[Image.Image], list[str], list[str | None]]:
+def row_context(row: dict):
+    if row["value"] is None and not row.get("fields"):
+        return None
+    ctx = {"n": row["value"] if row["value"] is not None else ""}
+    ctx.update(row.get("fields") or {})
+    return ctx
+
+
+def _tag_items(items: list, prefix: str) -> list:
+    return [dict(it, _uid=f"{prefix}{i}") for i, it in enumerate(items or []) if it]
+
+
+def render_all(spec: dict, tape_mm: float, only_selected: bool = False):
+    """Alle Etiketten einer Serie rendern.
+
+    Rückgabe: (Bilder, Warnungen, Werte, Zeilen-Indizes). Mit `series.uniform` bekommen
+    gleiche Text-Elemente auf allen Etiketten dieselbe (kleinste nötige) Schriftgröße.
+    """
     rows = series_rows(spec)
+    index = [i for i, r in enumerate(rows) if r.get("on", True) or not only_selected]
+    rows_sel = [rows[i] for i in index]
+    uniform = bool((spec.get("series") or {}).get("uniform")) and len(rows_sel) > 1
+
+    def items_for(r):
+        own = r["items"] is not None
+        src = r["items"] if own else spec.get("items", [])
+        # Etiketten mit eigener Gestaltung werden für sich vereinheitlicht
+        return _tag_items(src, f"r{id(r)}-" if own else "t")
+
+    tagged = [items_for(r) for r in rows_sel]
+    if uniform:
+        _LOCAL.sizes = {}
+        try:
+            for r, its in zip(rows_sel, tagged):
+                render_label(spec, tape_mm, row_context(r), its)
+            sizes = dict(_LOCAL.sizes)
+        finally:
+            _LOCAL.sizes = None
+        fixed = []
+        for its in tagged:
+            out = []
+            for it in its:
+                if it.get("type") in ("text", "number") and it["_uid"] in sizes:
+                    it = dict(it, size_mode="fixed", size_px=sizes[it["_uid"]])
+                out.append(it)
+            fixed.append(out)
+        tagged = fixed
+
     images, warnings = [], []
-    for r in rows:
-        img, w = render_label(spec, tape_mm, r["value"], r["items"])
+    for r, its in zip(rows_sel, tagged):
+        img, w = render_label(spec, tape_mm, row_context(r), its)
         images.append(img)
         for msg in w:
             if msg not in warnings:
                 warnings.append(msg)
-    return images, warnings, [r["value"] for r in rows]
+    return images, warnings, [r["value"] for r in rows_sel], index

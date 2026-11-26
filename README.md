@@ -17,6 +17,10 @@ Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
 - **Symbole:** 30 eingebaute Icons oder beliebiges Emoji
 - **QR-Codes** (inkl. WLAN-Zugang) und **Barcodes** (Code 128/39, EAN, UPC, ISBN)
 - **Gestaltung:** Rahmen, invertiert, feste Etikettlänge, Abstände
+- **Tabellen-Serien (Batches):** beliebige Spalten (z. B. `{name}`, `{nr}`, `{raum}`), aus Excel/Sheets
+  einfügen (Tab oder `;` getrennt), Zeilen per Häkchen auswählen und nur die ausgewählten oder alle drucken,
+  Filter, **einheitliche Schriftgröße** über alle Etiketten; als Vorlage speichern
+- **Schnellstart Transponder:** 24 mm, 37 mm, drei Zeilen zentriert und fett
 - **Serien:** fortlaufende Nummern oder eingefügte Liste, als bearbeitbare Liste unter der Vorschau –
   jeder Wert änderbar, jedes Etikett auf Wunsch komplett einzeln gestaltbar (Platzhalter `{n}`, `{datum}`)
 - **Bandfarbe & Schriftfarbe** für die Vorschau wählbar (oder automatisch vom Drucker)

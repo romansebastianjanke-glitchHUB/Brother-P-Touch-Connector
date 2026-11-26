@@ -93,6 +93,7 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
 
 /* Schnellstart & Hinzufügen */
 .quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
 .quick button { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 10px 8px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, transform .1s; }
 .quick button:hover { border-color: var(--accent); transform: translateY(-1px); }
 .quick .mini { height: 26px; border-radius: 4px; background: #fff; border: 1px solid #ddd; display: flex; align-items: center; gap: 4px; padding: 0 5px; color: #111; font-weight: 800; font-size: 12px; overflow: hidden; }
@@ -153,19 +154,22 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
 .series { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .series-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .series-head h2 { margin: 0; font-size: 15px; }
-.sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; padding: 14px; }
-.scard { border: 1px solid var(--line); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 7px; cursor: pointer; background: var(--panel); transition: border-color .15s, box-shadow .15s; }
-.scard:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
-.scard.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
-.scard.editing { border-color: var(--accent2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 22%, transparent); }
-.scard .pic { height: 40px; border-radius: 6px; background: #fff; display: grid; place-items: center; overflow: hidden; border: 1px solid #eee; }
-.scard .pic img { max-height: 34px; max-width: 100%; image-rendering: pixelated; }
-.scard .line { display: flex; align-items: center; gap: 5px; }
-.scard .num { font-weight: 700; color: var(--muted); font-size: 12px; width: 22px; text-align: right; }
-.scard input { padding: 5px 8px; }
-.tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent2) 20%, transparent); color: color-mix(in srgb, var(--accent2) 70%, var(--ink)); }
-.addcard { border: 2px dashed var(--line); border-radius: 12px; display: grid; place-items: center; min-height: 92px; color: var(--muted); cursor: pointer; font-weight: 600; background: transparent; }
-.addcard:hover { border-color: var(--accent); color: var(--accent); }
+.stable { padding: 6px 14px 14px; overflow-x: auto; }
+.srow { display: grid; grid-template-columns: var(--cols); gap: 6px; align-items: center; padding: 5px 6px; border-radius: 10px; min-width: 620px; }
+.srow.head { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding-top: 0; }
+.srow.body { cursor: pointer; border: 1px solid transparent; }
+.srow.body:hover { background: var(--bg2); }
+.srow.on { border-color: var(--accent); background: var(--accent-soft); }
+.srow.editing { border-color: var(--accent2); }
+.srow.off .pic, .srow.off input[type=text] { opacity: .45; }
+.srow .pic { height: 34px; border-radius: 5px; background: #fff; display: grid; place-items: center; overflow: hidden; border: 1px solid #e5e5e5; }
+.srow .pic img { max-height: 30px; max-width: 100%; image-rendering: pixelated; }
+.srow .num { font-weight: 700; color: var(--muted); font-size: 12px; text-align: right; }
+.srow input[type=text] { padding: 5px 8px; min-width: 0; }
+.srow .acts { display: flex; gap: 2px; align-items: center; }
+.sfoot { display: flex; gap: 8px; padding: 0 20px 16px; flex-wrap: wrap; }
+.colhead { display: flex; align-items: center; gap: 4px; }
+.colhead code { font-size: 11px; }
 
 /* Anordnung */
 .arrange { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
@@ -222,7 +226,7 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
       <div class="quick" style="margin-top:8px">
         <button data-quick="schild"><span class="mini">04<i></i></span><small>Nummernschild</small></button>
         <button data-quick="qrnum"><span class="mini"><s></s>00878</span><small>QR-Nummer</small></button>
-        <button data-quick="text"><span class="mini">Text</span><small>Nur Text</small></button>
+        <button data-quick="transponder"><span class="mini" style="font-size:7px;line-height:1.05;flex-direction:column;justify-content:center;display:flex">Room<br>2<br>C1.22</span><small>Transponder</small></button>
       </div>
     </div>
     <h3>Elemente</h3>
@@ -243,10 +247,15 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
   <!-- SERIE -->
   <section class="pane" data-pane="serie">
     <label class="toggle"><input type="checkbox" id="series-on"> Serie drucken</label>
-    <div class="hint">Jedes Etikett der Serie bekommt einen eigenen Wert für <code>{n}</code> – z. B. im Nummern- oder QR-Element.
-      Die Liste erscheint rechts unter der Vorschau: dort kannst du jeden Wert ändern und jedes Etikett einzeln gestalten.</div>
+    <div class="hint">Jede Zeile der Tabelle wird ein Etikett. Die erste Spalte ist <code>{n}</code>, weitere Spalten heißen z. B. <code>{name}</code> –
+      diese Platzhalter in Text, Nummer oder QR-Code verwenden. Die Tabelle steht rechts unter der Vorschau.</div>
     <div id="series-settings">
-      <h3>Nummern erzeugen</h3>
+      <h3>Tabelle</h3>
+      <label class="field" style="margin-top:8px"><span class="lbl">Weitere Spalten (Komma-getrennt) – im Text als Platzhalter nutzen</span>
+        <input type="text" id="cols" placeholder="z. B. name, nr, raum"></label>
+      <div class="hint" id="col-hint"></div>
+      <label class="check" style="margin-top:8px"><input type="checkbox" id="uniform"> Einheitliche Schriftgröße für alle Etiketten</label>
+      <h3 style="margin-top:16px">Nummern erzeugen</h3>
       <div class="row" style="margin-top:8px">
         <label class="field"><span class="lbl">Von</span><input type="number" data-s="start" step="1"></label>
         <label class="field"><span class="lbl">Bis</span><input type="number" data-s="end" step="1"></label>
@@ -256,10 +265,11 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
         <label class="field"><span class="lbl">Stellen (z. B. 5 → 00001)</span><input type="number" data-s="digits" min="0" max="10" step="1"></label>
       </div>
       <div class="row" style="margin-top:10px"><button class="btn soft" id="gen">Liste neu erzeugen</button></div>
-      <h3 style="margin-top:16px">…oder Liste einfügen</h3>
-      <label class="field" style="margin-top:8px"><span class="lbl">Ein Eintrag pro Zeile (z. B. aus Excel / Sheets)</span>
-        <textarea id="paste-list" rows="5" placeholder="00878&#10;00879&#10;00880"></textarea></label>
-      <div class="row" style="margin-top:8px"><button class="btn" id="use-list">Als Serie übernehmen</button></div>
+      <h3 style="margin-top:16px">…oder Tabelle einfügen</h3>
+      <label class="field" style="margin-top:8px"><span class="lbl">Eine Zeile pro Etikett, Spalten mit ; oder Tab getrennt (z. B. direkt aus Excel / Sheets kopiert)</span>
+        <textarea id="paste-list" rows="6" placeholder="2397;Editing Room;2;C1.22&#10;2394;Editing Booth;1;C1.30"></textarea></label>
+      <label class="check" style="margin-top:6px"><input type="checkbox" id="paste-header"> Erste Zeile enthält Spaltennamen</label>
+      <div class="row" style="margin-top:8px"><button class="btn" id="use-list">Ersetzen</button><button class="btn" id="add-list">Anhängen</button></div>
     </div>
   </section>
 
@@ -367,9 +377,14 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
     <div class="series-head">
       <h2>Serie</h2><span class="hint" id="series-count"></span>
       <span class="grow"></span>
-      <span class="hint">Wert ändern · ✎ = dieses Etikett einzeln gestalten</span>
+      <input type="text" id="sfilter" placeholder="Filtern …" style="width:170px">
+      <button class="btn small" id="sel-all">Alle</button><button class="btn small" id="sel-none">Keine</button>
     </div>
-    <div class="sgrid" id="sgrid"></div>
+    <div class="stable" id="sgrid"></div>
+    <div class="sfoot">
+      <button class="btn soft" id="addrow">＋ Zeile</button>
+      <span class="hint" style="align-self:center">Häkchen = wird gedruckt · Zeile anklicken = Vorschau · ✎ = einzeln gestalten · Enter/↑↓ = nächste Zeile</span>
+    </div>
   </div>
 </section>
 </main>
@@ -705,9 +720,11 @@ function genValues(s) {
   for (let v = start; step > 0 ? v <= end : v >= end; v += step) { out.push(String(v).padStart(+s.digits || 0, "0")); if (out.length >= 500) break; }
   return out;
 }
+function cols() { return state.series.columns || []; }
+function newRow(value, fields) { return { value: String(value ?? ""), fields: fields || {}, items: null, on: true }; }
 function setRows(values) {
   const old = state.series.rows || [];
-  state.series.rows = values.map((v, i) => ({ value: v, items: old[i] ? old[i].items : null }));
+  state.series.rows = values.map((v, i) => Object.assign(newRow(v), old[i] ? { items: old[i].items, fields: old[i].fields || {} } : {}));
   editing = null; showIdx = 0;
 }
 function ensureSeries(digits) {
@@ -717,12 +734,22 @@ function ensureSeries(digits) {
     setRows(genValues(state.series));
   }
 }
+const colKey = c => c.trim().toLowerCase().replace(/[^a-z0-9äöüß_]+/g, "_").replace(/^_+|_+$/g, "");
 $("#series-on").addEventListener("change", e => {
   state.series.mode = e.target.checked ? "on" : "none";
   if (e.target.checked && !state.series.rows.length) setRows(genValues(state.series));
   editing = null; renderAll(); changed();
 });
 $$("[data-s]").forEach(el => el.addEventListener("input", () => { state.series[el.dataset.s] = +el.value; }));
+$("#cols").addEventListener("change", () => {
+  const old = cols(), next = $("#cols").value.split(",").map(colKey).filter(c => c && c !== "n");
+  // umbenannte Spalten (gleiche Position) behalten ihre Werte
+  state.series.rows.forEach(r => {
+    const f = {}; next.forEach((c, i) => { f[c] = r.fields?.[c] ?? (old[i] !== undefined ? r.fields?.[old[i]] : "") ?? ""; }); r.fields = f;
+  });
+  state.series.columns = next; renderSeries(); changed();
+});
+$("#uniform").addEventListener("change", e => { state.series.uniform = e.target.checked; changed(); });
 $("#gen").addEventListener("click", () => {
   const vals = genValues(state.series);
   if (!vals.length) return alert("Mit diesen Werten entsteht keine Nummer.");
@@ -730,40 +757,94 @@ $("#gen").addEventListener("click", () => {
   if (custom && !confirm("Einzeln gestaltete Etiketten behalten ihre Gestaltung an gleicher Position. Fortfahren?")) return;
   state.series.mode = "on"; setRows(vals); renderAll(); changed();
 });
-$("#use-list").addEventListener("click", () => {
-  const vals = $("#paste-list").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 500);
-  if (!vals.length) return $("#paste-list").focus();
-  state.series.mode = "on"; setRows(vals); renderAll(); changed();
+function parseTable(text, header) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const split = l => (l.includes("\t") ? l.split("\t") : l.split(";")).map(x => x.trim());
+  let names = null;
+  if (header && lines.length) names = split(lines.shift()).map(colKey);
+  const rows = lines.slice(0, 500).map(split);
+  const width = Math.max(1, ...rows.map(r => r.length));
+  let columns = cols().slice();
+  if (names) columns = names.slice(1).map((c, i) => c || `spalte${i + 2}`);
+  while (columns.length < width - 1) columns.push(`spalte${columns.length + 2}`);
+  return { columns, rows: rows.map(r => newRow(r[0], Object.fromEntries(columns.map((c, i) => [c, r[i + 1] ?? ""])))) };
+}
+function useTable(append) {
+  const t = $("#paste-list").value; if (!t.trim()) return $("#paste-list").focus();
+  const { columns, rows } = parseTable(t, $("#paste-header").checked);
+  state.series.columns = columns; state.series.mode = "on";
+  state.series.rows = append ? state.series.rows.concat(rows) : rows;
+  editing = null; showIdx = append ? showIdx : 0; renderAll(); changed();
+  showMessages([["ok", `${rows.length} Zeile${rows.length === 1 ? "" : "n"} ${append ? "angehängt" : "übernommen"}.`]], "print");
+}
+$("#use-list").addEventListener("click", () => useTable(false));
+$("#add-list").addEventListener("click", () => useTable(true));
+$("#sel-all").addEventListener("click", () => { state.series.rows.forEach(r => r.on = true); renderSeries(); changed(); });
+$("#sel-none").addEventListener("click", () => { state.series.rows.forEach(r => r.on = false); renderSeries(); changed(); });
+$("#sfilter").addEventListener("input", applyFilter);
+function applyFilter() {
+  const q = $("#sfilter").value.trim().toLowerCase();
+  $$("#sgrid .srow.body").forEach(el => {
+    const r = state.series.rows[+el.dataset.r];
+    const hay = [r.value, ...Object.values(r.fields || {})].join(" ").toLowerCase();
+    el.style.display = !q || hay.includes(q) ? "" : "none";
+  });
+}
+$("#addrow").addEventListener("click", () => {
+  const rows = state.series.rows, lastRow = rows[rows.length - 1];
+  const last = lastRow?.value ?? "0";
+  const m = /^(.*?)(\d+)$/.exec(last);
+  const next = last === "" ? "" : m ? m[1] + String(+m[2] + 1).padStart(m[2].length, "0") : last;
+  rows.push(newRow(next, lastRow ? Object.assign({}, lastRow.fields) : {})); renderSeries(); changed();
+  const inp = $(`[data-cell="${rows.length - 1}:n"]`); if (inp) { inp.focus(); inp.select(); }
 });
 function renderSeries() {
-  const on = state.series.mode !== "none", rows = state.series.rows;
+  const on = state.series.mode !== "none", rows = state.series.rows, cs = cols();
   $("#series-on").checked = on;
   $("#series-settings").style.opacity = on ? 1 : .5;
   $$("[data-s]").forEach(el => { el.value = state.series[el.dataset.s] ?? ""; });
+  if (document.activeElement !== $("#cols")) $("#cols").value = cs.join(", ");
+  $("#uniform").checked = !!state.series.uniform;
+  $("#col-hint").innerHTML = `Platzhalter: <code>{n}</code>${cs.map(c => ` <code>{${esc(c)}}</code>`).join("")}`;
   $("#series").hidden = !on;
-  const badge = $("#serie-badge"); badge.hidden = !on; badge.textContent = rows.length;
+  const sel = rows.filter(r => r.on !== false).length;
+  const badge = $("#serie-badge"); badge.hidden = !on; badge.textContent = sel;
   if (!on) return;
-  $("#series-count").textContent = `${rows.length} Etikett${rows.length === 1 ? "" : "en"}`;
+  $("#series-count").textContent = `${rows.length} Zeile${rows.length === 1 ? "" : "n"} · ${sel} ausgewählt`;
   const g = $("#sgrid");
-  g.innerHTML = rows.map((r, i) => `<div class="scard ${i === showIdx ? "on" : ""} ${i === editing ? "editing" : ""}" data-r="${i}">
+  g.style.setProperty("--cols", `20px 22px 84px minmax(56px, .55fr) ${cs.map(() => "minmax(64px, 1fr)").join(" ")} max-content`);
+  const head = `<div class="srow head"><span></span><span>#</span><span>Vorschau</span><span class="colhead"><code>{n}</code></span>${cs.map(c => `<span class="colhead"><code>{${esc(c)}}</code></span>`).join("")}<span></span></div>`;
+  g.innerHTML = head + rows.map((r, i) => `<div class="srow body ${i === showIdx ? "on" : ""} ${i === editing ? "editing" : ""} ${r.on === false ? "off" : ""}" data-r="${i}">
+      <input type="checkbox" data-on="${i}" ${r.on !== false ? "checked" : ""} title="drucken">
+      <span class="num">${i + 1}</span>
       <div class="pic"><img data-pic="${i}" alt=""></div>
-      <div class="line"><span class="num">${i + 1}</span><input type="text" data-v="${i}" value="${esc(r.value)}">
-        ${r.items ? `<span class="tag" title="eigene Gestaltung">eigen</span>` : ""}</div>
-      <div class="line"><button class="btn small ${i === editing ? "soft" : ""}" data-edit="${i}" title="dieses Etikett einzeln gestalten">✎ Gestalten</button>
-        <span class="grow"></span>
+      <input type="text" data-cell="${i}:n" value="${esc(r.value)}">
+      ${cs.map(c => `<input type="text" data-cell="${i}:${esc(c)}" value="${esc(r.fields?.[c] ?? "")}">`).join("")}
+      <div class="acts">${r.items ? `<span class="tag" title="eigene Gestaltung">eigen</span>` : ""}
+        <button class="btn ghost small ${i === editing ? "soft" : ""}" data-edit="${i}" title="dieses Etikett einzeln gestalten">✎</button>
         <button class="btn ghost small" data-rdup="${i}" title="duplizieren">⧉</button>
-        <button class="btn ghost small" data-rdel="${i}" title="entfernen">✕</button></div></div>`).join("")
-    + `<button class="addcard" id="addrow">＋ Etikett</button>`;
+        <button class="btn ghost small" data-rdel="${i}" title="entfernen">✕</button></div></div>`).join("");
   $$("[data-r]", g).forEach(c => c.addEventListener("click", e => {
     if (e.target.closest("button,input")) return;
     showIdx = +c.dataset.r; markSeries(); drawPreview();
   }));
-  $$("[data-v]", g).forEach(inp => {
-    inp.addEventListener("focus", () => { showIdx = +inp.dataset.v; markSeries(); drawPreview(); });
-    inp.addEventListener("input", () => { rows[+inp.dataset.v].value = inp.value; if (editing === +inp.dataset.v) renderContext(); changed(); });
+  $$("[data-on]", g).forEach(cb => cb.addEventListener("change", () => {
+    rows[+cb.dataset.on].on = cb.checked; cb.closest(".srow").classList.toggle("off", !cb.checked);
+    const n = rows.filter(r => r.on !== false).length;
+    $("#series-count").textContent = `${rows.length} Zeilen · ${n} ausgewählt`; $("#serie-badge").textContent = n;
+    changed();
+  }));
+  $$("[data-cell]", g).forEach(inp => {
+    const [ri, key] = inp.dataset.cell.split(":"), i = +ri;
+    inp.addEventListener("focus", () => { if (showIdx !== i) { showIdx = i; markSeries(); drawPreview(); } });
+    inp.addEventListener("input", () => {
+      if (key === "n") rows[i].value = inp.value; else { rows[i].fields = rows[i].fields || {}; rows[i].fields[key] = inp.value; }
+      if (editing === i) renderContext(); changed();
+    });
     inp.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); const n = $(`[data-v="${+inp.dataset.v + 1}"]`); if (n) n.focus(); }
-      if (e.key === "ArrowUp") { e.preventDefault(); const n = $(`[data-v="${+inp.dataset.v - 1}"]`); if (n) n.focus(); }
+      const go = d => { e.preventDefault(); const n = $(`[data-cell="${i + d}:${key}"]`); if (n) { n.focus(); n.select(); } };
+      if (e.key === "Enter" || e.key === "ArrowDown") go(1);
+      if (e.key === "ArrowUp") go(-1);
     });
   });
   $$("[data-edit]", g).forEach(b => b.addEventListener("click", () => {
@@ -784,14 +865,7 @@ function renderSeries() {
     if (editing === i) editing = null; else if (editing !== null && editing > i) editing--;
     showIdx = Math.min(showIdx, rows.length - 1); renderAll(); changed();
   }));
-  $("#addrow").addEventListener("click", () => {
-    const last = rows[rows.length - 1]?.value ?? "0";
-    const m = /^(.*?)(\d+)$/.exec(last);
-    const next = m ? m[1] + String(+m[2] + 1).padStart(m[2].length, "0") : last + "-2";
-    rows.push({ value: next, items: null }); renderSeries(); changed();
-    const inp = $(`[data-v="${rows.length - 1}"]`); if (inp) { inp.focus(); inp.select(); }
-  });
-  updateSeriesPics();
+  applyFilter(); updateSeriesPics();
 }
 function markSeries() { $$("#sgrid [data-r]").forEach(c => c.classList.toggle("on", +c.dataset.r === showIdx)); }
 function updateSeriesPics() {
@@ -841,6 +915,15 @@ $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
     state.items = [NEW.qr(), Object.assign(NEW.number(), { position: "flow", size_pct: 60 })];
     state.length_mm = 0; state.gap_mm = 1.5; state.series.digits = 5; state.series.start = 1; state.series.end = 10;
     state.series.mode = "on"; setRows(genValues(state.series));
+  } else if (q === "transponder") {
+    state.items = [Object.assign(NEW.text(), { text: "{name}\n{nr}\n{raum}", bold: true, align: "center", line_spacing: 4 })];
+    Object.assign(state, { tape: 24, length_mm: 37, padding_mm: 0.5, gap_mm: 1, margin_mm: 2, frame: "none", invert: false });
+    state.series.columns = ["name", "nr", "raum"]; state.series.uniform = true; state.series.mode = "on";
+    state.series.rows = [
+      { value: "2397", fields: { name: "Editing Room", nr: "2", raum: "C1.22" }, items: null, on: true },
+      { value: "2382", fields: { name: "Practice Room", nr: "1", raum: "C0.24" }, items: null, on: true },
+      { value: "3194", fields: { name: "Rehearsal Room", nr: "1 · Vocals", raum: "B-1.09 · 24/5" }, items: null, on: true }];
+    showTab("serie");
   } else {
     state.items = [Object.assign(NEW.text(), { text: "Hallo" })];
     state.series.mode = "none"; editing = null;
@@ -899,11 +982,14 @@ function drawPreview() {
   img.src = p.images[idx];
 }
 function drawStats() {
-  const p = preview, total = p.count * Math.max(1, state.copies || 1);
+  const p = preview, n = state.series.mode !== "none" ? (p.selected ?? p.count) : p.count;
+  const total = n * Math.max(1, state.copies || 1);
   $("#stats").innerHTML = `<div class="stat">Band<b>${String(p.tape_mm).replace(".", ",")} mm</b></div>
     <div class="stat">Länge<b>≈ ${String(p.length_mm).replace(".", ",")} mm</b></div>
     <div class="stat">Etiketten<b>${total}</b></div>`;
-  $("#print").innerHTML = `🖨 ${total > 1 ? `${total} Etiketten drucken` : "Drucken"}`;
+  const partial = state.series.mode !== "none" && n < p.count;
+  $("#print").innerHTML = `🖨 ${total === 0 ? "Nichts ausgewählt" : total > 1 ? `${total} ${partial ? "ausgewählte " : ""}Etiketten drucken` : partial ? "1 ausgewähltes drucken" : "Drucken"}`;
+  $("#print").disabled = total === 0;
   showMessages(p.warnings.map(w => ["warn", w]), "preview");
 }
 const MSG = { preview: [], print: [] };
@@ -1040,12 +1126,13 @@ function loadSpec(spec) {
     let vals = [];
     if (s.series.mode === "numbers") vals = genValues(s.series);
     if (s.series.mode === "list") vals = String(s.series.list || "").split(/\r?\n/).map(x => x.trim()).filter(Boolean);
-    s.series.rows = vals.map(v => ({ value: v, items: null }));
+    s.series.rows = vals.map(v => ({ value: v, items: null, fields: {}, on: true }));
     if (s.series.mode !== "none") s.series.mode = s.series.rows.length ? "on" : "none";
   }
   delete s.flip; // Ausrichtung ist jetzt eine Drucker-Einstellung
   s.items = fillItems(s.items);
-  s.series.rows = s.series.rows.map(r => ({ value: String(r.value ?? ""), items: r.items ? fillItems(r.items) : null }));
+  s.series.columns = Array.isArray(s.series.columns) ? s.series.columns : [];
+  s.series.rows = s.series.rows.map(r => ({ value: String(r.value ?? ""), fields: r.fields || {}, on: r.on !== false, items: r.items ? fillItems(r.items) : null }));
   state = s; selected = openItem = 0; showIdx = 0; editing = null;
   renderAll(); changed();
 }
