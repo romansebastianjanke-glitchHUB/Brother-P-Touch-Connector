@@ -213,3 +213,14 @@ def test_qr_with_caption_below():
     import qrcode
     from PIL import Image as _I
     assert img.height == 128
+
+
+def test_number_with_caption_below():
+    spec = {"items": [{"type": "qr", "data": "{qr}", "caption": "{qr}"},
+                      {"type": "number", "position": "center", "caption": "{info}", "caption_pct": 25}],
+            "series": {"mode": "on", "rows": [{"value": "01", "fields": {"qr": "00878", "info": "SM 58"}}]}}
+    img = layout.render_all(spec, 24)[0][0]
+    # rechter Teil (Nummer + Unterzeile): Tinte oben und unten
+    x0 = img.width // 2
+    rows = [y for y in range(img.height) if any(img.getpixel((x, y)) == 0 for x in range(x0, img.width))]
+    assert rows[0] < 25 and rows[-1] > 100

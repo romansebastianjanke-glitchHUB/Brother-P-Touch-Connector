@@ -26,7 +26,8 @@ Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
 - **Liste als PDF:** die Serie als A4-Tabelle (Hochformat, mit Datum „Stand …“) öffnen und als PDF sichern
 - **Neu / Speichern** in der Kopfzeile (⌘S), mit Anzeige „● nicht gespeichert“ und Rückfrage vor dem Verwerfen
 - **Serie ohne Verschnitt:** alle Etiketten einer Serie gehen als ein Auftrag raus – nur am Anfang ein Vorlauf-Stück
-- **QR-Code mit Unterschrift:** kleiner Text (z. B. die QR-Nummer) direkt unter dem Code
+- **Kleine Zeile darunter:** bei QR-Code, Nummer und Text eine Unterzeile (Anteil an der Höhe einstellbar),
+  fester Text oder Platzhalter wie `{info}` – dann pro Etikett in der Tabelle änderbar
 - **Schnellstart QR + Nr.:** QR links (¾ Höhe, Nummer klein darunter), große Nummer rechts
 - **Schnellstart Transponder:** 24 mm, 37 mm, drei Zeilen zentriert und fett
 - **Serien:** fortlaufende Nummern oder eingefügte Liste, als bearbeitbare Liste unter der Vorschau –

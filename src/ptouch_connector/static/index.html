@@ -460,8 +460,8 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 const NEW = {
-  number: () => ({ type: "number", text: "{n}", position: "left", divider: false, divider_px: 2, font: "", bold: true, italic: false, underline: false, size_mode: "auto", size_pct: 100, size_px: 40, align: "center", line_spacing: 10, valign: "center" }),
-  text: () => ({ type: "text", text: "Text", font: "", size_mode: "auto", size_pct: 100, size_px: 40, bold: false, italic: false, underline: false, align: "center", line_spacing: 35, valign: "center" }),
+  number: () => ({ type: "number", text: "{n}", caption: "", caption_pct: 25, caption_bold: false, position: "left", divider: false, divider_px: 2, font: "", bold: true, italic: false, underline: false, size_mode: "auto", size_pct: 100, size_px: 40, align: "center", line_spacing: 10, valign: "center" }),
+  text: () => ({ type: "text", text: "Text", caption: "", caption_pct: 25, caption_bold: false, font: "", size_mode: "auto", size_pct: 100, size_px: 40, bold: false, italic: false, underline: false, align: "center", line_spacing: 35, valign: "center" }),
   image: () => ({ type: "image", src: "", size_pct: 100, mode: "dither", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
   symbol: () => ({ type: "symbol", key: "blitz", emoji: "", src: "", size_pct: 85, mode: "threshold", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
   qr: () => ({ type: "qr", data: "{n}", ecc: "M", size_pct: 100, valign: "center", caption: "", caption_pct: 25, caption_bold: false }),
@@ -606,6 +606,8 @@ const IMGOPTS = `<div class="row">${f.range("size_pct", "Größe", 10, 100, 1, "
   <div class="row">${f.sel("mode", "Umwandlung", [["dither", "Graustufen rastern (Fotos)"], ["threshold", "Schwelle (Logos, Grafiken)"]])}${VALIGN}</div>
   <div class="row">${f.range("threshold", "Schwelle", 1, 254, 1)}${f.range("contrast", "Kontrast", -80, 200, 5)}</div>
   <div class="row">${f.check("invert", "invertieren")}${f.check("autocrop", "weißen Rand entfernen")}</div>`;
+const CAPTION = (hint) => `${f.input("caption", hint)}
+  <div class="row" data-when-caption>${f.range("caption_pct", "Anteil kleine Zeile an der Höhe", 12, 45, 1, " %")}${f.check("caption_bold", "fett")}</div>`;
 const fontOpts = () => [["", `Standard (${(CFG.settings && CFG.settings.default_font) || "Helvetica"})`], ...CFG.fonts.map(x => [x, x])];
 const TEXTSTYLE = () => `<div class="row">${f.sel("font", "Schrift", fontOpts())}</div>
   <div class="row">${f.sel("size_mode", "Größe", [["auto", "an Bandhöhe anpassen"], ["fixed", "feste Größe (Punkte)"]])}
@@ -623,9 +625,11 @@ function itemHTML(it, i) {
   let body = "";
   if (it.type === "number") {
     body = `${f.input("text", "Inhalt – {n} wird durch die Seriennummer ersetzt", "{n}")}
+      ${CAPTION("Kleine Zeile darunter (leer = keine), z. B. SM 58 oder {info}")}
       ${TEXTSTYLE()}`;
   } else if (it.type === "text") {
-    body = `${f.text("text", "Text (Enter = neue Zeile)")}${TEXTSTYLE()}
+    body = `${f.text("text", "Text (Enter = neue Zeile)")}
+      ${CAPTION("Kleine Zeile darunter (leer = keine)")}${TEXTSTYLE()}
       <div class="row">${f.sel("align", "Zeilen ausrichten", [["left", "links"], ["center", "mittig"], ["right", "rechts"]])}${f.range("line_spacing", "Zeilenabstand", 0, 150, 1, " %")}</div>`;
   } else if (it.type === "image") {
     body = `<div class="row" style="align-items:center">${it.src ? `<img class="thumb" src="${it.src}">` : `<span class="hint">Noch kein Bild – ⌘V oder Datei wählen</span>`}
@@ -1112,10 +1116,10 @@ $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
     state.series.mode = "on"; setRows(genValues(state.series));
   } else if (q === "qrinv") {
     state.items = [Object.assign(NEW.qr(), { data: "{qr}", caption: "{qr}", caption_pct: 25 }),
-                   Object.assign(NEW.number(), { position: "center", bold: false, size_pct: 100 })];
+                   Object.assign(NEW.number(), { position: "center", bold: false, size_pct: 100, caption: "{info}", caption_pct: 25 })];
     Object.assign(state, { tape: 24, length_mm: 0, padding_mm: 1, gap_mm: 2.5, margin_mm: 2, frame: "none", invert: false });
-    state.series.columns = ["qr"]; state.series.uniform = false; state.series.mode = "on";
-    state.series.rows = Array.from({ length: 22 }, (_, i) => ({ value: String(i + 1).padStart(2, "0"), fields: { qr: String(878 + i).padStart(5, "0") }, items: null, on: true }));
+    state.series.columns = ["qr", "info"]; state.series.uniform = false; state.series.mode = "on";
+    state.series.rows = Array.from({ length: 22 }, (_, i) => ({ value: String(i + 1).padStart(2, "0"), fields: { qr: String(878 + i).padStart(5, "0"), info: "SM 58" }, items: null, on: true }));
     showTab("serie");
   } else if (q === "transponder") {
     state.items = [Object.assign(NEW.text(), { text: "{name}\n{nr}\n{raum}", font: "", bold: false, align: "center", line_spacing: 45 })];

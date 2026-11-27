@@ -354,6 +354,32 @@ def render_barcode(item: dict, h: int, value: str | None, warnings: list[str]) -
     return img
 
 
+def render_with_caption(item: dict, h: int, value, warnings: list[str]) -> Image.Image:
+    """Text/Nummer, optional mit kleiner Zeile darunter (z. B. 3/4 Nummer + 1/4 „SM 58“)."""
+    caption = substitute(str(item.get("caption", "") or ""), value).strip()
+    if not caption:
+        return render_text(item, h, value, warnings)
+    cap_h = max(6, int(h * float(item.get("caption_pct", 25)) / 100))
+    gap = max(1, cap_h // 8)
+    main_h = max(6, h - cap_h - gap)
+    main = _crop_white(render_text(item, main_h, value, warnings))
+    cap_item = {"type": "text", "text": caption, "font": item.get("caption_font") or item.get("font", ""),
+                "bold": bool(item.get("caption_bold")), "line_spacing": 0, "size_pct": 100}
+    cap = _crop_white(render_text(cap_item, cap_h, None, warnings))
+    width = max(main.width, cap.width) + 4
+    img = _blank(width, h)
+    block = main.height + gap + cap.height
+    top = max(0, (h - block) // 2)
+    align = item.get("caption_align", "center")
+
+    def x_for(w):
+        return 2 if align == "left" else (width - w - 2 if align == "right" else (width - w) // 2)
+
+    img.paste(main, ((width - main.width) // 2, top))
+    img.paste(cap, (x_for(cap.width), min(h - cap.height, top + main.height + gap)))
+    return img
+
+
 def render_item(item: dict, h: int, value: str | None, warnings: list[str]) -> Image.Image:
     """Ein Element rendern; Fehler werden zur Warnung, statt die ganze Vorschau zu blockieren."""
     try:
@@ -370,11 +396,10 @@ def render_item(item: dict, h: int, value: str | None, warnings: list[str]) -> I
 
 def _render_item(item: dict, h: int, value: str | None, warnings: list[str]) -> Image.Image:
     t = item.get("type")
-    if t == "text":
-        img = render_text(item, h, value, warnings)
-    elif t == "number":
-        num = dict(item, text=item.get("text") or "{n}")
-        img = render_text(num, h, value if value is not None else "01", warnings)
+    if t in ("text", "number"):
+        main = dict(item, text=item.get("text") or "{n}") if t == "number" else item
+        val = value if (value is not None or t == "text") else "01"
+        img = render_with_caption(main, h, val, warnings)
     elif t in ("image", "symbol"):
         img = render_image(item, h, warnings)
     elif t == "qr":
