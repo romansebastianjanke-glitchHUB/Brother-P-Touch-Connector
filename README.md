@@ -24,11 +24,15 @@ Live-Vorschau (in der echten Bandfarbe) und Druckknopf:
 - **Bearbeiten für Alle | Ausgewählte | Nur dieses:** bei Serien oben im Editor wählen, für welche Etiketten
   eine Änderung gilt (Häkchen in der Liste = „Ausgewählte“); „⇉ alle“ überträgt ein Element auf alle Etiketten
 - **Liste als PDF:** die Serie als A4-Tabelle (Hochformat, mit Datum „Stand …“) öffnen und als PDF sichern
+- **Neu / Speichern** in der Kopfzeile (⌘S), mit Anzeige „● nicht gespeichert“ und Rückfrage vor dem Verwerfen
+- **Serie ohne Verschnitt:** alle Etiketten einer Serie gehen als ein Auftrag raus – nur am Anfang ein Vorlauf-Stück
+- **QR-Code mit Unterschrift:** kleiner Text (z. B. die QR-Nummer) direkt unter dem Code
+- **Schnellstart QR + Nr.:** QR links (¾ Höhe, Nummer klein darunter), große Nummer rechts
 - **Schnellstart Transponder:** 24 mm, 37 mm, drei Zeilen zentriert und fett
 - **Serien:** fortlaufende Nummern oder eingefügte Liste, als bearbeitbare Liste unter der Vorschau –
   jeder Wert änderbar, jedes Etikett auf Wunsch komplett einzeln gestaltbar (Platzhalter `{n}`, `{datum}`)
 - **Bandfarbe & Schriftfarbe** für die Vorschau wählbar (oder automatisch vom Drucker)
-- **Druck:** Kopien, Schnitt/Halbschnitt, Rand, Serie als ein Auftrag; Spiegeln als Geräte-Einstellung
+- **Druck:** Kopien, Schnitt/Halbschnitt, Rand; Spiegeln als Geräte-Einstellung
 - **Anordnung per Ziehen:** jedes Element in die Bereiche Links / Mitte / Rechts ziehen
   (links/rechts bleiben bei fester Länge am Rand, optional mit Trennlinie)
 - **Etikettlänge = echte Gesamtlänge** inkl. Rand; passt der Inhalt nicht, wird er automatisch verkleinert.

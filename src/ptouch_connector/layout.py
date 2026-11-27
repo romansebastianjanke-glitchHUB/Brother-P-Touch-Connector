@@ -37,7 +37,7 @@ DEFAULT_SPEC: dict[str, Any] = {
     "copies": 1,
     "cut": "full",           # full | half | none
     "series": {"mode": "none", "start": 1, "end": 10, "step": 1, "digits": 0, "list": ""},
-    "chain": False,
+    "separate_jobs": False,
 }
 
 FONT_DIRS = [
@@ -276,7 +276,9 @@ def render_qr(item: dict, h: int, value: str | None, warnings: list[str]) -> Ima
     qr.make(fit=True)
     matrix = qr.get_matrix()
     n = len(matrix)
-    target = int(h * float(item.get("size_pct", 100)) / 100)
+    caption = substitute(str(item.get("caption", "") or ""), value).strip()
+    cap_h = int(h * float(item.get("caption_pct", 25)) / 100) if caption else 0
+    target = int((h - cap_h) * float(item.get("size_pct", 100)) / 100)
     module = target // n
     if module < 1:
         warnings.append(f"QR-Code „{data[:20]}“ passt nicht aufs Band – kürzerer Inhalt oder breiteres Band.")
@@ -284,8 +286,24 @@ def render_qr(item: dict, h: int, value: str | None, warnings: list[str]) -> Ima
     elif module == 1:
         warnings.append("QR-Code ist sehr klein (1 Punkt pro Modul) – evtl. schlecht lesbar.")
     size = n * module
-    img = _blank(size, h)
-    top = (h - size) // 2
+    cap_img = None
+    if caption:
+        # kleiner Text unter dem QR-Code (z. B. die QR-Nummer), so breit wie der Code
+        cap_img = render_text({"type": "text", "text": caption, "font": item.get("font", ""),
+                               "bold": item.get("caption_bold", False), "line_spacing": 0,
+                               "size_pct": 100}, max(6, cap_h), None, warnings)
+        cap_img = _crop_white(cap_img)
+        if cap_img.width > size * 1.15:  # breiter als der QR-Code: proportional verkleinern
+            k = size * 1.15 / cap_img.width
+            cap_img = _to_bw(cap_img.resize((max(1, int(cap_img.width * k)), max(1, int(cap_img.height * k))), Image.LANCZOS))
+    width = max(size, cap_img.width if cap_img else 0)
+    img = _blank(width, h)
+    gap = max(1, cap_h // 8) if cap_img else 0
+    block = size + (gap + cap_img.height if cap_img else 0)
+    top = (h - block) // 2
+    if cap_img:
+        img.paste(cap_img, ((width - cap_img.width) // 2, top + size + gap))
+    xoff = (width - size) // 2
     px = img.load()
     for y, row in enumerate(matrix):
         for x, on in enumerate(row):
@@ -294,7 +312,7 @@ def render_qr(item: dict, h: int, value: str | None, warnings: list[str]) -> Ima
                     for dx in range(module):
                         yy = top + y * module + dy
                         if 0 <= yy < h:
-                            px[x * module + dx, yy] = 0
+                            px[xoff + x * module + dx, yy] = 0
     return img
 
 

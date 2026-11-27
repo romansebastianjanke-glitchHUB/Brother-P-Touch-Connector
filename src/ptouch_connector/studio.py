@@ -177,7 +177,9 @@ class Studio:
             )
             total = len(pages)
             log(f"Drucke {total} Etikett(en) auf {tape:g} mm …")
-            if spec.get("chain") and total > 1:
+            # Standard: alles in EINEM Auftrag -> nur am Anfang ein Vorlauf-Stück,
+            # dazwischen wird direkt geschnitten. "separate_jobs" = alter Weg (jedes Etikett einzeln).
+            if not spec.get("separate_jobs") and total > 1:
                 job = protocol.build_multi_job(pages, tape, **opts)
                 res = p.print_job(job, expect=total)
                 self._check(res, messages, f"{total} Etiketten")

@@ -202,7 +202,8 @@ def build_multi_job(
     for i, lines in enumerate(pages):
         last = i == len(pages) - 1
         info = bytearray(print_info(width_mm, len(lines), media_type))
-        info[11] = 0x00 if i == 0 else 0x01  # n9: Startseite / Folgeseite
+        # n9: 0 = Startseite, 1 = Folgeseite, 2 = letzte Seite (Brother Raster Command Reference)
+        info[11] = 0x00 if i == 0 else (0x02 if last else 0x01)
         job += info
         job += mode_settings(auto_cut)
         job += advanced_mode(half_cut=half_cut)

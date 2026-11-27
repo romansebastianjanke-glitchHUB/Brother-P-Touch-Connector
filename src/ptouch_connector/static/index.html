@@ -41,6 +41,9 @@ header { position: sticky; top: 0; z-index: 20; display: flex; align-items: cent
 @keyframes pulse { 50% { opacity: .35; } }
 .sw { width: 16px; height: 16px; border-radius: 5px; border: 1px solid rgba(0,0,0,.18); display: inline-grid; place-items: center; font-size: 10px; font-weight: 800; flex: none; }
 .grow { flex: 1; }
+#doc b { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
+#doc .dirty { color: #f59e0b; font-size: 12px; font-weight: 600; }
+#doc .clean { color: #22c55e; font-size: 12px; font-weight: 600; }
 
 /* Grundlayout */
 main { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); gap: 20px; padding: 20px; align-items: start; max-width: 1700px; margin: 0 auto; }
@@ -92,7 +95,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 11px; }
 
 /* Schnellstart & Hinzufügen */
-.quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.quick { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 
 .quick button { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 10px 8px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, transform .1s; }
 .quick button:hover { border-color: var(--accent); transform: translateY(-1px); }
@@ -205,6 +208,9 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
   <span class="chip" id="status"><span class="dot wait"></span><span>Verbinde mit Drucker …</span></span>
   <button class="btn ghost small" id="refresh" title="Druckerstatus neu abfragen">↻ Status</button>
   <span class="grow"></span>
+  <span class="chip" id="doc" title="aktuelle Vorlage"></span>
+  <button class="btn small" id="hdr-new" title="neues, leeres Etikett">＋ Neu</button>
+  <button class="btn small soft" id="hdr-save" title="als Vorlage speichern (⌘S)">💾 Speichern</button>
   <button class="btn ghost small" id="quit">Beenden</button>
 </header>
 
@@ -227,6 +233,7 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
       <div class="quick" style="margin-top:8px">
         <button data-quick="schild"><span class="mini">04<i></i></span><small>Nummernschild</small></button>
         <button data-quick="qrnum"><span class="mini"><s></s>00878</span><small>QR-Nummer</small></button>
+        <button data-quick="qrinv"><span class="mini" style="gap:6px"><s></s><span style="font-size:15px">01</span></span><small>QR + Nr. (Liste)</small></button>
         <button data-quick="transponder"><span class="mini" style="font-size:7px;line-height:1.05;flex-direction:column;justify-content:center;display:flex">Room<br>2<br>C1.22</span><small>Transponder</small></button>
       </div>
     </div>
@@ -327,7 +334,7 @@ kbd { background: var(--bg2); border: 1px solid var(--line); border-bottom-width
         <select data-k="cut"><option value="full">abschneiden</option><option value="half">Halbschnitt (Träger bleibt)</option><option value="none">nicht schneiden</option></select></label>
       <label class="field"><span class="lbl">Kopien je Etikett</span><input type="number" data-k="copies" min="1" max="99" step="1"></label>
     </div>
-    <label class="check"><input type="checkbox" data-k="chain"> Serie als ein Auftrag (spart Band zwischen den Etiketten)</label>
+    <label class="check"><input type="checkbox" data-k="separate_jobs"> Jedes Etikett als eigenen Auftrag drucken (verschwendet je ein Vorlauf-Stück – nur bei Problemen)</label>
     <h3>Drucker-Einstellungen <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">· gelten für alle Etiketten</span></h3>
     <label class="field"><span class="lbl">Standardschrift (für alle Elemente mit „Standard“)</span><select data-set="default_font" id="deffont"></select></label>
     <label class="check"><input type="checkbox" data-set="mirror"> Druck spiegeln (nur falls er seitenverkehrt herauskommt)</label>
@@ -457,7 +464,7 @@ const NEW = {
   text: () => ({ type: "text", text: "Text", font: "", size_mode: "auto", size_pct: 100, size_px: 40, bold: false, italic: false, underline: false, align: "center", line_spacing: 35, valign: "center" }),
   image: () => ({ type: "image", src: "", size_pct: 100, mode: "dither", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
   symbol: () => ({ type: "symbol", key: "blitz", emoji: "", src: "", size_pct: 85, mode: "threshold", threshold: 128, contrast: 0, invert: false, autocrop: true, rotate: 0, valign: "center" }),
-  qr: () => ({ type: "qr", data: "{n}", ecc: "M", size_pct: 100, valign: "center" }),
+  qr: () => ({ type: "qr", data: "{n}", ecc: "M", size_pct: 100, valign: "center", caption: "", caption_pct: 25, caption_bold: false }),
   barcode: () => ({ type: "barcode", kind: "code128", data: "{n}", module_px: 2, show_text: true, size_pct: 100, valign: "center" }),
   spacer: () => ({ type: "spacer", width_mm: 5 }),
 };
@@ -630,6 +637,8 @@ function itemHTML(it, i) {
     body = `${f.text("data", "Inhalt – {n} = Seriennummer (nur die Zahl)", "{n}")}
       <div class="row"><button class="btn small" data-qrn>Nur Nummer {n}</button><button class="btn small" data-wifi>WLAN-Zugang…</button></div>
       <div class="row">${f.sel("ecc", "Fehlerkorrektur", [["L", "niedrig (kleiner)"], ["M", "mittel"], ["Q", "hoch"], ["H", "sehr hoch"]])}${f.range("size_pct", "Größe", 30, 100, 1, " %")}</div>
+      ${f.input("caption", "Text klein unter dem QR-Code (leer = keiner), z. B. {qr} oder {n}")}
+      <div class="row" data-when-caption>${f.range("caption_pct", "Anteil Text an der Höhe", 12, 45, 1, " %")}${f.check("caption_bold", "fett")}</div>
       <div class="row">${VALIGN}</div>`;
   } else if (it.type === "barcode") {
     body = `<div class="row">${f.sel("kind", "Typ", [["code128", "Code 128 (Text & Zahlen)"], ["code39", "Code 39"], ["ean13", "EAN-13 (12 Ziffern)"], ["ean8", "EAN-8 (7 Ziffern)"], ["upca", "UPC-A (11 Ziffern)"], ["isbn13", "ISBN-13"]])}</div>
@@ -652,6 +661,7 @@ function itemHTML(it, i) {
     <div class="item-body">${body}</div></div>`;
 }
 function syncWhen(card, it) {
+  $$("[data-when-caption]", card).forEach(el => { el.style.display = it.caption ? "" : "none"; });
   $$("[data-when]", card).forEach(el => { const [k, v] = el.dataset.when.split("="); el.style.display = String(it[k]) === v ? "" : "none"; });
   $$("[data-show]", card).forEach(el => { el.textContent = it[el.dataset.show]; });
 }
@@ -1087,7 +1097,10 @@ function renderAll() { syncGlobals(); renderItems(); renderSeries(); }
 // ---------- Schnellstart ----------
 $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
   const q = b.dataset.quick;
-  if (items().length && !confirm("Aktuelles Etikett durch den Schnellstart ersetzen?")) return;
+  if (dirty) {
+    if (!confirm(`Ungespeicherte Änderungen an „${docName || "Unbenannt"}“ verwerfen und Schnellstart laden?`)) return;
+  } else if (docName && !confirm(`Schnellstart als neues Etikett beginnen? („${docName}“ bleibt gespeichert.)`)) return;
+  setDoc(null, false);
   editing = null; scope = "all"; state.series.rows = [];
   if (q === "schild") {
     state.items = [Object.assign(NEW.number(), { divider: true, divider_px: 1 }), Object.assign(NEW.text(), { text: "" })];
@@ -1097,6 +1110,13 @@ $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
     state.items = [NEW.qr(), Object.assign(NEW.number(), { position: "flow", size_pct: 60 })];
     state.length_mm = 0; state.gap_mm = 1.5; state.series.digits = 5; state.series.start = 1; state.series.end = 10;
     state.series.mode = "on"; setRows(genValues(state.series));
+  } else if (q === "qrinv") {
+    state.items = [Object.assign(NEW.qr(), { data: "{qr}", caption: "{qr}", caption_pct: 25 }),
+                   Object.assign(NEW.number(), { position: "center", bold: false, size_pct: 100 })];
+    Object.assign(state, { tape: 24, length_mm: 0, padding_mm: 1, gap_mm: 2.5, margin_mm: 2, frame: "none", invert: false });
+    state.series.columns = ["qr"]; state.series.uniform = false; state.series.mode = "on";
+    state.series.rows = Array.from({ length: 22 }, (_, i) => ({ value: String(i + 1).padStart(2, "0"), fields: { qr: String(878 + i).padStart(5, "0") }, items: null, on: true }));
+    showTab("serie");
   } else if (q === "transponder") {
     state.items = [Object.assign(NEW.text(), { text: "{name}\n{nr}\n{raum}", font: "", bold: false, align: "center", line_spacing: 45 })];
     Object.assign(state, { tape: 24, length_mm: 37, padding_mm: 0.5, gap_mm: 1, margin_mm: 2, frame: "none", invert: false });
@@ -1116,7 +1136,45 @@ $$("[data-quick]").forEach(b => b.addEventListener("click", () => {
 
 // ---------- Vorschau ----------
 let timer = null, seq = 0;
-function changed() { store.set("ptouch-studio-v2", state); clearTimeout(timer); timer = setTimeout(refreshPreview, 230); }
+// ---------- Dokument: Name, ungespeichert, Neu/Speichern ----------
+let docName = null, dirty = false, loading = false;
+function renderDoc() {
+  const el = $("#doc"); if (!el) return;
+  el.innerHTML = `📄 <b>${esc(docName || "Unbenannt")}</b> ${dirty ? `<span class="dirty">● nicht gespeichert</span>` : docName ? `<span class="clean">✓ gespeichert</span>` : ""}`;
+}
+function setDoc(name, isDirty) { docName = name; dirty = isDirty; store.set("ptouch-studio-doc", { name: docName, dirty }); renderDoc(); }
+function changed() {
+  store.set("ptouch-studio-v2", state);
+  if (!loading && !dirty) setDoc(docName, true);
+  clearTimeout(timer); timer = setTimeout(refreshPreview, 230);
+}
+async function saveDoc(askName) {
+  let name = docName;
+  if (askName || !name) {
+    name = prompt("Als Vorlage speichern unter:", docName || $("#tplname").value.trim() || "");
+    if (name === null) return false;
+    name = name.trim(); if (!name) return false;
+  }
+  const r = await api("/api/template", { name, spec: state });
+  if (r.error) { alert(r.error); return false; }
+  renderTemplates(r.templates); $("#tplname").value = name; setDoc(name, false);
+  showMessages([["ok", `Vorlage „${name}“ gespeichert.`]], "print");
+  return true;
+}
+async function newDoc() {
+  if (dirty) {
+    if (confirm(`Änderungen an „${docName || "Unbenannt"}“ vorher speichern?\n\nOK = speichern · Abbrechen = nicht speichern`)) {
+      if (!(await saveDoc(false))) return;
+    } else if (!confirm("Ungespeicherte Änderungen verwerfen und neu beginnen?")) return;
+  }
+  loadSpec(Object.assign(clone(CFG.defaults), { items: [Object.assign(NEW.text(), { text: "Hallo" })] }), null);
+  showTab("inhalt");
+}
+$("#hdr-save").addEventListener("click", () => saveDoc(false));
+$("#hdr-new").addEventListener("click", newDoc);
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveDoc(e.shiftKey); }
+});
 async function refreshPreview() {
   const my = ++seq; $("#stage").classList.add("busy");
   let res;
@@ -1258,7 +1316,8 @@ function renderHistory() {
     : `<div class="hint">${HIST.length ? "Nichts gefunden." : "Noch nichts gedruckt – jeder Druck landet automatisch hier."}</div>`;
   $$("[data-hopen]").forEach(b => b.addEventListener("click", async () => {
     const e = await api("/api/history/item?id=" + b.dataset.hopen); if (e.error) return alert(e.error);
-    loadSpec(e.spec); showTab("inhalt");
+    if (dirty && !confirm(`Ungespeicherte Änderungen an „${docName || "Unbenannt"}“ verwerfen?`)) return;
+    loadSpec(e.spec, null); setDoc(null, true); showTab("inhalt");
     showMessages([["ok", `Aus dem Verlauf geöffnet: ${e.title} (${e.time})`]], "print");
   }));
   $$("[data-hprint]").forEach(b => b.addEventListener("click", async () => {
@@ -1287,7 +1346,9 @@ function renderTemplates(list) {
   $$("[data-load]").forEach(b => b.addEventListener("click", async () => {
     const spec = await api("/api/template?name=" + b.dataset.load);
     if (spec.error) return alert(spec.error);
-    loadSpec(spec); $("#tplname").value = decodeURIComponent(b.dataset.load);
+    const name = decodeURIComponent(b.dataset.load);
+    if (dirty && name !== docName && !confirm(`Ungespeicherte Änderungen an „${docName || "Unbenannt"}“ verwerfen und „${name}“ laden?`)) return;
+    loadSpec(spec, name); $("#tplname").value = name;
   }));
   $$("[data-delt]").forEach(b => b.addEventListener("click", async () => {
     const n = decodeURIComponent(b.dataset.delt); if (!confirm(`Vorlage „${n}“ löschen?`)) return;
@@ -1297,14 +1358,13 @@ function renderTemplates(list) {
 $("#tplsave").addEventListener("click", async () => {
   const name = $("#tplname").value.trim(); if (!name) return $("#tplname").focus();
   const r = await api("/api/template", { name, spec: state }); renderTemplates(r.templates);
+  setDoc(name, false);
   showMessages([["ok", `Vorlage „${name}“ gespeichert.`]], "print");
 });
-$("#reset").addEventListener("click", () => {
-  if (!confirm("Aktuelles Etikett verwerfen?")) return;
-  loadSpec(Object.assign(clone(CFG.defaults), { items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
-});
+$("#reset").addEventListener("click", newDoc);
 function fillItems(list) { return (list || []).map(it => Object.assign(NEW[it.type] ? NEW[it.type]() : {}, it)); }
-function loadSpec(spec) {
+function loadSpec(spec, name) {
+  loading = true;
   const s = Object.assign(clone(CFG.defaults), { preview_tape: "auto", preview_ink: "auto" }, clone(spec));
   s.series = Object.assign({ mode: "none", start: 1, end: 10, step: 1, digits: 2, rows: [] }, s.series || {});
   // ältere Serien (Nummern/Liste ohne Zeilen) übernehmen
@@ -1316,6 +1376,8 @@ function loadSpec(spec) {
     if (s.series.mode !== "none") s.series.mode = s.series.rows.length ? "on" : "none";
   }
   delete s.flip; // Ausrichtung ist jetzt eine Drucker-Einstellung
+  delete s.chain; // früher Option, heute Standard: Serie = ein Auftrag
+  s.separate_jobs = !!s.separate_jobs;
   s.items = fillItems(s.items);
   s.series.columns = Array.isArray(s.series.columns) ? s.series.columns : [];
   s.series.rows = s.series.rows.map(r => ({ value: String(r.value ?? ""), fields: r.fields || {}, on: r.on !== false, items: r.items ? fillItems(r.items) : null }));
@@ -1323,6 +1385,8 @@ function loadSpec(spec) {
   delete s.series.propagate;
   state = s; selected = openItem = 0; showIdx = 0; editing = null; scope = "all";
   renderAll(); changed();
+  loading = false;
+  if (name !== undefined) setDoc(name, false);
 }
 
 // ---------- Einfügen & Ziehen ----------
@@ -1355,6 +1419,7 @@ $$("[data-add]").forEach(b => b.addEventListener("click", async () => {
   const saved = store.get("ptouch-studio-v2") || store.get("ptouch-studio-spec");
   loadSpec(saved || Object.assign(clone(CFG.defaults), { items: [Object.assign(NEW.text(), { text: "Hallo" })] }));
   for (const it of state.items) if (it.type === "symbol" && !it.src) await updateSymbol(it);
+  const d = store.get("ptouch-studio-doc"); if (d) setDoc(d.name || null, !!d.dirty); else renderDoc();
   renderTemplates(CFG.templates);
   syncSettings();
   showStatus(CFG.status);

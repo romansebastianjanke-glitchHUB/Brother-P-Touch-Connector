@@ -69,6 +69,13 @@ def test_multi_job():
     job = protocol.build_multi_job(pages, 12)
     assert job.count(b"\x1b\x69\x7a") == 2
     assert job.endswith(b"\x1a") and b"\x0c\x1b\x69\x7a" in job
+    infos = [job[i + 3:i + 13] for i in range(len(job)) if job[i:i + 3] == b"\x1b\x69\x7a"]
+    assert [x[8] for x in infos] == [0, 2]  # Startseite, letzte Seite
+    three = protocol.build_multi_job([pages[0]] * 3, 12)
+    infos = [three[i + 3:i + 13] for i in range(len(three)) if three[i:i + 3] == b"\x1b\x69\x7a"]
+    assert [x[8] for x in infos] == [0, 1, 2]
+    # nur ein Vorlauf (Invalidate + Initialize) am Anfang
+    assert three.count(b"\x1b\x40") == 1
 
 
 def test_broken_font_falls_back(monkeypatch):
@@ -196,3 +203,13 @@ def test_uniform_is_thread_safe():
     with cf.ThreadPoolExecutor(6) as ex:
         results = list(ex.map(lambda _: layout.render_all(spec, 24)[0][0].width, range(24)))
     assert len(set(results)) == 1
+
+
+def test_qr_with_caption_below():
+    item = {"type": "qr", "data": "{qr}", "caption": "{qr}", "caption_pct": 25}
+    img = layout.render_item(item, 128, {"n": "01", "qr": "00878"}, [])
+    rows = [y for y in range(img.height) if any(img.getpixel((x, y)) == 0 for x in range(img.width))]
+    assert rows[0] < 20 and rows[-1] > 100  # QR oben, Text unten
+    import qrcode
+    from PIL import Image as _I
+    assert img.height == 128
